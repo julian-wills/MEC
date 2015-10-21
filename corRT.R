@@ -33,29 +33,66 @@ expand_data <- function(df, breaks=0.10, min=-4, max=4){
   return(tab)
 }
 
-# perform on each subset and then combine (ugly code... but in a hurry)
-new.xy.me <- expand_data(dAll %>% filter(cond=="ME",topic=="C"),breaks=0.25) %>%  mutate(cond="ME")
-new.xy.nme <- expand_data(dAll %>% filter(cond=="NME",topic=="C"),breaks=0.25) %>% mutate(cond="NME")
-new.xy.mne <- expand_data(dAll %>% filter(cond=="MNE",topic=="C"),breaks=0.25) %>% mutate(cond="MNE")
-new.xy.nmne <- expand_data(dAll %>% filter(cond=="NMNE",topic=="C"),breaks=0.25) %>%  mutate(cond="NMNE")
-new.xy <- rbind(new.xy.me,new.xy.nme,new.xy.mne,new.xy.nmne)
+ideoHeatMap <- function(df) { 
+  new.xy.me <- expand_data(df %>% filter(cond=="ME"),breaks=0.25) %>%  mutate(cond="ME")
+  new.xy.nme <- expand_data(df %>% filter(cond=="NME"),breaks=0.25) %>% mutate(cond="NME")
+  new.xy.mne <- expand_data(df %>% filter(cond=="MNE"),breaks=0.25) %>% mutate(cond="MNE")
+  new.xy.nmne <- expand_data(df %>% filter(cond=="NMNE"),breaks=0.25) %>%  mutate(cond="NMNE")
+  return (rbind(new.xy.me,new.xy.nme,new.xy.mne,new.xy.nmne))
+}
 
 # create heatmap
-ggplot(new.xy, aes(x=y, y=x)) +
+ggplot(ideoHeatMap(dGC), aes(x=y, y=x)) +
   geom_tile(aes(fill=prop), colour="white") +
   scale_fill_gradient(name="% of\ntweets", 
                       low = "white", high = "black", 
                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
-       title="Ideological Correlations in All Climate Tweets") + 
+       title="Ideological Correlations in Gun Control 2013 Tweets") + 
   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
   coord_equal()  +
   facet_wrap(~ cond)
 
+# Incomplete data ---------------------------------------------------------
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+dGM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/gayMarriageMoral/split/RT/","GM_RT.csv"),header=T))
+dGC <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/GC2013/filt/RT/","GC_RT.csv"),header=T))
+dAll <- rbind(dGM,dGC)
 
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GC")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gun Control 2013 Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_grid(. ~ cond)
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GM")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gay Marriage Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_grid(. ~ cond)
+
+dAll %>% distinct(topic) %>% select(topic)
 # Overlay distributions ---------------------------------------------------
 
 ggplot(dAll, aes(count, colour = cond)) + 

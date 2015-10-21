@@ -1,0 +1,140 @@
+---
+title: "Ideology Heatmaps"
+author: "Julian Wills and Billy Brady"
+date: "October 20, 2015"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r, echo=FALSE, results='hide', include=FALSE}
+# load packages  --------------------------------------------------------
+require(magrittr) || {install.packages("magrittr"); require(magrittr)}
+require(dplyr) || {install.packages("dplyr"); require(dplyr)}
+require(reshape2) || {install.packages("reshape2"); require(reshape2)}
+require(ggplot2) || {install.packages("ggplot2"); require(ggplot2)}
+
+
+# load in RT summary files
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+dG <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/Guns/split/filt/RT/","G_RT.csv"),header=T))
+dM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/marriage/split/RT/","M_RT.csv"),header=T))
+dC <- tbl_df(read.csv(paste0(getwd(),"/","ClimateChange/Combined/split/filt/append/RT/",
+                             "C_RT.csv"),header=T))
+dAll <- rbind(dG,dM,dC)
+
+# Heat maps ---------------------------------------------------------------
+
+## functions to construct heatmaps
+min <- -3.5
+max <- 3.5
+breaks <- 0.25
+
+expand_data <- function(df, breaks=0.10, min=-4, max=4){
+  x <- df$rtid %>% as.numeric()
+  y <- df$tid %>% as.numeric()
+  x <- (round((x - min) / breaks, 0) * breaks) + min
+  y <- (round((y - min) / breaks, 0) * breaks) + min
+  tab <- table(x, y)
+  tab <- melt(tab)
+  tab$prop <- tab$value/sum(tab$value)
+  return(tab)
+}
+
+ideoHeatMap <- function(df) { 
+  new.xy.me <- expand_data(df %>% filter(cond=="ME"),breaks=0.25) %>%  mutate(cond="ME")
+  new.xy.nme <- expand_data(df %>% filter(cond=="NME"),breaks=0.25) %>% mutate(cond="NME")
+  new.xy.mne <- expand_data(df %>% filter(cond=="MNE"),breaks=0.25) %>% mutate(cond="MNE")
+  new.xy.nmne <- expand_data(df %>% filter(cond=="NMNE"),breaks=0.25) %>%  mutate(cond="NMNE")
+  return (rbind(new.xy.me,new.xy.nme,new.xy.mne,new.xy.nmne))
+}
+```
+
+Ideology plots 
+
+```{r, echo=FALSE}
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(topic=="G")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gun Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_wrap(~ cond)
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(topic=="M")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Marriage Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_wrap(~ cond)
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(topic=="C")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Climate Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_wrap(~ cond)
+
+# Incomplete data ---------------------------------------------------------
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+dGM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/gayMarriageMoral/split/RT/","GM_RT.csv"),header=T))
+dGC <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/GC2013/filt/RT/","GC_RT.csv"),header=T))
+dAll <- rbind(dGM,dGC)
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GC")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gun Control 2013 Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_grid(. ~ cond)
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GM")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gay Marriage Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_grid(. ~ cond)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,87 @@
+---
+title: "(Re)tweets per Day, broken down by condition"
+author: "Julian Wills and Billy Brady"
+date: "October 20, 2015"
+output: pdf_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+# load packages
+require(dplyr) || {install.packages("dplyr"); require(dplyr)}
+require(ggplot2) || {install.packages("ggplot2"); require(ggplot2)}
+require(scales) || {install.packages("scales"); require(scales)}
+require(lubridate) || {install.packages("lubridate"); require(lubridate)}
+
+# load in data
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+dAll <- tbl_df(read.csv("allRetweets.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01"))
+
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+# Original tweets/retweets over time for guns
+plotDf <- count(dAll  %>% filter(orig==1), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf %>% filter(topic=="G"), aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Original Tweets/Day related to Guns")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+plotDf <- count(dAll  %>% filter(orig2==1), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf %>% filter(topic=="G"), aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Retweets/Day related to Guns")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+# Original tweets/retweets over time for marriage
+plotDf <- count(dAll  %>% filter(orig==1), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf %>% filter(topic=="M"), aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Original Tweets/Day related to Marriage")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+plotDf <- count(dAll  %>% filter(orig2==1), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf %>% filter(topic=="M"), aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Retweets/Day related to Marriage")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+# Original tweets/retweets over time for climate
+plotDf <- count(dAll  %>% filter(orig==1), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf %>% filter(topic=="C"), aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Original Tweets/Day related to Climate")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+plotDf <- count(dAll  %>% filter(orig2==1,topic=="C"), cond, topic, day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+ggplot(data=plotDf, aes(x=day, y=n, colour=cond)) + 
+  geom_line(size=1) +
+  scale_y_continuous(labels = comma) + 
+  labs(y="Number of Tweets", x="Day",title=paste("Retweets/Day related to Climate")) + 
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+# plotDf %>% filter(topic=="C") %>% group_by(cond) %>% summarise(count=n())
+# plotDf %>% filter(cond=="NMNE")
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
