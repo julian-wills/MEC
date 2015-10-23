@@ -67,10 +67,13 @@ convertRetweet <- function(fs,w=F,lastTime=F) { #convert df to retweet counts/su
     topic = s[[1]][1] #parse topic 
     cond = paste(s[[1]][2],s[[1]][3],sep="") #parse condition
     tmpTxt <- filter(df,id_str %in% retweeted_status.id_str)$text #stores texts of original tweets
-    tmpDate <- filter(df,id_str %in% retweeted_status.id_str)$timestamp #stores timestamps 
+    tmpDate <- filter(df,id_str %in% retweeted_status.id_str) %>% arrange(id_str) %$% timestamp #stores timestamps 
     tmpDate2 <- rep(NA, length(tmpDate)) 
     if (lastTime==T){
-      tmpDate2 <- filter(df,retweeted_status.id_str %in% id_str) %>% group_by(retweeted_status.id_str) %>% 
+      # if interested, filter to retweets based on original tweets,
+      # remove duplicates, select last retweet and grab timestamp
+      tmpDate2 <- filter(df,retweeted_status.id_str %in% id_str)  %>% 
+        group_by(retweeted_status.id_str) %>% arrange(retweeted_status.id_str) %>% 
         do(tail(., n=1)) %$% timestamp
     }
     dfs <- df %>% mutate(origT = ifelse(id_str %in% df$retweeted_status.id_str, 1, 0)) %>% 
@@ -82,6 +85,7 @@ convertRetweet <- function(fs,w=F,lastTime=F) { #convert df to retweet counts/su
              text = tmpTxt, #returns text of original tweet
              origTime = tmpDate,
              lastTime = tmpDate2,
+             persist=tmpDate2 %>% yday - tmpDate %>% yday,
              cond=cond,topic=topic,
              M=ifelse(cond=="ME"|cond=="MNE",1,-1),
              E=ifelse(cond=="ME"|cond=="NME",1,-1)) 
@@ -124,43 +128,62 @@ tweetsPerDay<- function(fs) {
 }
 
 # function for creating megafile
-writeSummaryTweets<- function(fs) {
+writeSummaryTweets<- function(fs,twFile=T,rtFile=T,sumFile=T) {
   d.allTweets <- NULL
   d.retweets <- NULL
   d.retweetSum <- NULL
   for (f in fs) {
-    df <- tbl_df(read.csv(f,header=T,sep=",")) 
-    probTweets <- df %>% group_by(id_str) %>% summarise(count=n()) %>% filter(count>1) %>% select(1) %>% unlist
-    if (length(probTweets)>0){
-      df <- df %>% filter(!id_str %in% probTweets)
-      df <- df %>% distinct(id_str)
-    }
+    df <- tbl_df(read.csv(f,header=T,sep=",")) %>% distinct(id_str)
+#     probTweets <- df %>% group_by(id_str) %>% summarise(count=n()) %>% filter(count>1) %>% select(1) %>% unlist
+#     if (length(probTweets)>0){
+#       df <- df %>% filter(!id_str %in% probTweets)
+#       df <- df %>% distinct(id_str)
+#     }
     s = strsplit(f, ".csv") %$% strsplit(.[[1]],"/") %$% strsplit(.[[1]] %>% last(),"_") 
     topic = s[[1]][1] #parse topic 
     cond = paste(s[[1]][2],s[[1]][3],sep="") #parse condition
+    tmpTxt <- filter(df,id_str %in% retweeted_status.id_str)$text #stores texts of original tweets
+    tmpDate <- filter(df,id_str %in% retweeted_status.id_str) %>% arrange(id_str) %$% timestamp #stores timestamps 
+    tmpDate2 <- rep(NA, length(tmpDate))
     df <- df %>% mutate(topic=topic,cond=cond)
     d.allTweets <- rbind(d.allTweets,df)
-    df <- df %>% mutate(orig = ifelse(id_str %in% df$retweeted_status.id_str, 1, 0)) %>% 
-      mutate(orig2 = ifelse(retweeted_status.id_str %in% df$id_str, 1, 0)) %>% 
-      filter(orig==1|orig2==1)
-    d.retweets <- rbind(d.retweets,df)
-    df2 <- df %>% group_by(retweeted_status.id_str) %>% 
-      summarise(count = n(),rtid = mean(ideology_estimate), targetIDsd=sd(ideology_estimate)) %>% 
-      arrange(desc(count))  %>% filter(!is.na(retweeted_status.id_str)) %>% 
-      mutate(tid = filter(df,id_str %in% retweeted_status.id_str)$ideology_estimate,
-             cond=cond,topic=topic,
-             M=ifelse(cond=="ME"|cond=="MNE",1,-1),
-             E=ifelse(cond=="ME"|cond=="NME",1,-1)) 
-    d.retweetSum <- rbind(d.retweetSum,df2)
-    print(paste("finished processing file",f))
+    if (rtFile==T) {
+      df <- df %>% mutate(orig = ifelse(id_str %in% df$retweeted_status.id_str, 1, 0)) %>% 
+        mutate(orig2 = ifelse(retweeted_status.id_str %in% df$id_str, 1, 0)) %>% 
+        filter(orig==1|orig2==1)
+      d.retweets <- rbind(d.retweets,df)
+      if (sumFile==T) {
+        tmpDate2 <- filter(df,retweeted_status.id_str %in% id_str)  %>% 
+          group_by(retweeted_status.id_str) %>% arrange(retweeted_status.id_str) %>% 
+          do(tail(., n=1)) %$% timestamp
+        df2 <- df %>% group_by(retweeted_status.id_str) %>% 
+          summarise(count = n(),rtid = mean(ideology_estimate), targetIDsd=sd(ideology_estimate)) %>% 
+          arrange(desc(count))  %>% filter(!is.na(retweeted_status.id_str)) %>% 
+          mutate(tid = filter(df,id_str %in% retweeted_status.id_str)$ideology_estimate,
+                 text = tmpTxt, #returns text of original tweet
+                 origTime = tmpDate,
+                 lastTime = tmpDate2,
+                 cond=cond,topic=topic,
+                 M=ifelse(cond=="ME"|cond=="MNE",1,-1),
+                 E=ifelse(cond=="ME"|cond=="NME",1,-1)) 
+        d.retweetSum <- rbind(d.retweetSum,df2)
+        print(paste("finished processing file",f))
+      }
+    }
   }
   setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
-  print(paste("writing allTweets.csv..."))
-  write.csv(d.allTweets,file.path(paste0("allTweets.csv")),row.names = F)
-  print(paste("writing retweets.csv..."))
-  write.csv(d.retweets,file.path(paste0("allRetweets.csv")),row.names = F)
-  print(paste("writing retweetSum.csv..."))
-  write.csv(d.retweetSum,file.path(paste0("allRTSummary.csv")),row.names = F)
+  if (twFile==T) {
+    print(paste("writing allTweets.csv..."))
+    write.csv(d.allTweets,file.path(paste0("allTweets.csv")),row.names = F)
+  }
+  if (rtFile==T) {
+    print(paste("writing allRetweets.csv..."))
+    write.csv(d.retweets,file.path(paste0("allRetweets.csv")),row.names = F)
+  }
+  if (sumFile==T) {
+    print(paste("writing allRTSummary.csv..."))
+    write.csv(d.retweetSum,file.path(paste0("allRTSummary.csv")),row.names = F)
+  }
 }
 
 f=fs3[4]
@@ -197,11 +220,12 @@ fsAll<-c(fsAll,normalizePath(fs3))
 convertRetweet(fs3,w=T,lastTime = T) #uncomment to write .csv
 # dC <- convertRetweet(fs3)
 
+# examine top tweets
 # dC %>% group_by(cond) %>% top_n(2,wt=count) 
-# function for creating megafile
 
+# write megatweet 
 fsAll <- c(fs1,fs2,fs3)
-writeSummaryTweets(fsAll)
+writeSummaryTweets(fsAll,twFile=F) #takes about 45 seconds to run
 
 # moral (gay marriage)
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/GayMarriage/gayMarriageMoral/split/")
@@ -219,16 +243,21 @@ convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
 dAll <- tbl_df(read.csv("allRetweets.csv",header=T,sep=",")) %>% 
   mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01"))
-plotDf <- count(dAll  %>% filter(orig==1), cond, topic, day=day) %>% 
+plotDf <- count(dAll  %>% filter(orig==1,topic=="C"), cond, topic, day=day) %>% 
   mutate(day=as.Date(day-1, origin = "2015-01-01"))
 plotDf2 <- count(dAll  %>% filter(orig2==1,topic=="C"), cond, topic, day=day) %>% 
   mutate(day=as.Date(day-1, origin = "2015-01-01"))
 write.csv(plotDf,file.path(paste0("climate/climateOrigTweets.csv")),row.names = F)
 write.csv(plotDf2,file.path(paste0("climate/climateRetweets.csv")),row.names = F)
 
+# count of retweets, grouped by retweet and day
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
-
-dTmp <- tbl_df(read.csv("allTweets.csv"))
+dAll <- tbl_df(read.csv("allRetweets.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
+  filter(!is.na(retweeted_status.id_str))
+plotDf <- count(dAll  %>% filter(topic=="C"), cond, topic, rtid=retweeted_status.id_str,day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01"))
+write.csv(plotDf,file.path(paste0("climate/climateRetweetsByID.csv")),row.names = F)
 
 
 # combine old datasets ----------------------------------------------------

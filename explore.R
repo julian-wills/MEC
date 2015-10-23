@@ -637,6 +637,22 @@ fs <- list.files(getwd(),".csv",full.names = T)
 dGM <- convertRetweet(fs,lastTime = T)
 dGM %>% group_by(cond) %>% filter(M==1) %>% top_n(3,wt=count) %>% select(text) %>% unlist()
 
+
+# Persistence of tweets ---------------------------------------------------
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+
+dAll <- tbl_df(read.csv("allRTSummary.csv",header=T,sep=",")) %>% 
+  mutate(origDay=yday(origTime),lastDay = yday(lastTime),persist=lastDay-origDay)
+plotDf <- count(dAll, cond, topic, persist=persist)
+
+dAll %>% filter(topic=="C") %>% group_by(cond) %>% summarise(mPersist=mean(persist))
+
+hist(dAll$persist)
+
+# Network of tweets ------------------------------------------------------
+
+
+
 ####### Ideology distributions for each topic
 
 # Old ideology histograms -------------------------------------------------
