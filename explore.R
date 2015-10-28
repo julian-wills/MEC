@@ -642,14 +642,191 @@ dGM %>% group_by(cond) %>% filter(M==1) %>% top_n(3,wt=count) %>% select(text) %
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
 
 dAll <- tbl_df(read.csv("allRTSummary.csv",header=T,sep=",")) %>% 
-  mutate(origDay=yday(origTime),lastDay = yday(lastTime),persist=lastDay-origDay)
-plotDf <- count(dAll, cond, topic, persist=persist)
-
+  mutate(origDay=as.POSIXct(origTime),lastDay = as.POSIXct(lastTime),
+         persist=as.numeric(lastDay-origDay,units="days"))
 dAll %>% filter(topic=="C") %>% group_by(cond) %>% summarise(mPersist=mean(persist))
+#! increases for each cell
 
-hist(dAll$persist)
+# bar plots for retweet frequency between condition and topic
+ggplot(dAll %>% filter(topic=="C")  %>% group_by(cond) %>%
+         summarise(mPersist=mean(persist),se=sd(persist)/sqrt(n())),
+       aes(x=factor(cond),y=mPersist,fill=factor(cond))) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = c("firebrick1","darkslateblue","lightcoral","lightslateblue")) +
+  geom_errorbar(aes(ymin=mPersist-se, ymax=mPersist+se),
+                width=.2,                    # Width of the error bars
+                position=position_dodge(.9))
+
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/GayMarriage/gayMarriageMoral/split/RT")
+dGM <- tbl_df(read.csv("GM_RT.csv",header=T,sep=",")) %>% 
+  mutate(origDay=yday(origTime),lastDay = yday(lastTime),persist=lastDay-origDay)
+dGM %>% group_by(E) %>% summarise(mPersist=mean(persist)) %>% arrange(desc(E))
+ggplot(dGM %>% group_by(E) %>%
+         summarise(mPersist=mean(persist),se=sd(persist)/sqrt(n())),
+       aes(x=factor(E),y=mPersist,fill=factor(E))) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = c("firebrick1","darkslateblue","lightcoral","lightslateblue")) +
+  geom_errorbar(aes(ymin=mPersist-se, ymax=mPersist+se),
+                width=.2,                    # Width of the error bars
+                position=position_dodge(.9))
+
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/GunControl/GC2013/filt/RT")
+dGC <- tbl_df(read.csv("GC_RT.csv",header=T,sep=",")) %>% 
+  mutate(origDay=yday(origTime),lastDay = yday(lastTime),persist=lastDay-origDay)
+dGC %>% group_by(E) %>% summarise(mPersist=mean(persist)) %>% arrange(desc(E))
+ggplot(dGC %>% group_by(E) %>%
+         summarise(mPersist=mean(persist),se=sd(persist)/sqrt(n())),
+       aes(x=factor(E),y=mPersist,fill=factor(E))) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = c("firebrick1","darkslateblue","lightcoral","lightslateblue")) +
+  geom_errorbar(aes(ymin=mPersist-se, ymax=mPersist+se),
+                width=.2,                    # Width of the error bars
+                position=position_dodge(.9))
+
+# dAll %>% filter(topic)
+
+hist(dGM$persist)
+
+
+# Contagion speed ---------------------------------------------------------
+
+# load in tweets
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% filter(topic=="C")
+
+# isolate tweets that get retweeted at least 10 times
+dRT10  <- dAll %>% group_by(retweeted_status.id_str) %>% top_n(10,timestamp) %>% 
+  summarise(count=n()) %>% filter(count==10) %>% left_join(dAll)
+
+# create dataframe for leftovers 
+dRT9  <- dAll %>% group_by(retweeted_status.id_str) %>% top_n(10,timestamp) %>% 
+  summarise(count=n()) %>% filter(count<10)
+
+# create dataframe of first 10 RTs for tweets that have been retweeted at least 10 times. 
+# probably some redundancy here... but it's late
+dRT10.1 <- dAll %>% group_by(retweeted_status.id_str) %>% do(head(., n=10)) %>% 
+  filter(!retweeted_status.id_str %in% dRT9$retweeted_status.id_str)
+
+# grab the timestamp of the 10th retweet
+dRT10 <- dRT10.1 %>% do(tail(.,n=1)) %>% select(retweeted_status.id_str,time10=timestamp) 
+
+# compute summary statistics for first 10 retweets
+dRT10 <- dRT10 %>%  
+  left_join(dRT10.1 %>% summarise(meanIdeo=mean(ideology_estimate),sdIdeo=sd(ideology_estimate),
+                                  rangeIdeo=abs(max(ideology_estimate)-min(ideology_estimate)))) %>% 
+  # join w/ original tweets, compute timespan (hours)
+  left_join(dAll %>% filter(orig==1) %>% 
+              select(origIdeo=ideology_estimate,id_str,time1=timestamp,topic,cond),
+            by=c("retweeted_status.id_str"="id_str")) %>% 
+  mutate(speedHrs=as.numeric(as.POSIXct(time10)-as.POSIXct(time1),units="hours")) %>% 
+  select(RTid=retweeted_status.id_str,speedHrs,origIdeo,meanIdeo:rangeIdeo,topic,cond,time1,time10) 
+
+
+dRT10 %>% group_by(cond) %>% summarise_each(funs(mean),speedHrs:rangeIdeo) %>% 
+  mutate(diffIdeo=abs(origIdeo-meanIdeo))
+# should maybe do this analysis on the top 10%
+  
+# load in persist tweets
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+dPersist <- tbl_df(read.csv("allRTSummary.csv",header=T,sep=",")) %>% 
+  mutate(origDay=as.POSIXct(origTime),lastDay = as.POSIXct(lastTime),
+         persist=as.numeric(lastDay-origDay,units="days")) %>% 
+  select(RTid=retweeted_status.id_str,persist,count:text)
+
+# merge w/ persist and rename variables
+dRT10.2 <- dRT10 %>% left_join(dPersist,"RTid") %>% 
+  select(RTid,count,speedHrs,persistDays=persist,ID.0=origIdeo,meanID.10=meanIdeo,sdID.10=sdIdeo,
+         rangeID.10=rangeIdeo,meanID=rtid,sdID=targetIDsd,cond,topic,text)
+
+# summary statistics for each condition
+dRT10.2 %>% group_by(cond) %>% summarise_each(funs(mean),count:sdID) %>% 
+  mutate(diffID.10=abs(ID.0-meanID.10),diffID=abs(ID.0-meanID)) %>% 
+  mutate_each(funs(round(.,2)),count:diffID) %>% na.omit()
+
+# constraining to top 10% in each condition
+dRT10.2 %>% ungroup() %>% arrange(desc(count)) %>% group_by(cond) %>% 
+  filter(cume_dist(desc(count)) < 0.1) %>% summarise_each(funs(mean),count:sdID) %>% 
+  mutate(diffID.10=abs(ID.0-meanID.10),diffID=abs(ID.0-meanID)) %>% 
+  mutate_each(funs(round(.,2)),count:diffID)
+
+# load in retweets per day file
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
+  filter(!is.na(retweeted_status.id_str))
+dRT.Day <- count(dAll  %>% filter(topic=="C"), cond, topic, rtid=retweeted_status.id_str,day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01")) %>% summarise(RTperDay=mean(n)) %>% 
+  ungroup() %>% select(RTid=rtid,RTperDay)
+
+dRT10.3 <- dRT10.2 %>% left_join(dRT.Day) %>% select(RTid:count,RTperDay,speedHrs:text) %>% 
+  ungroup() %>% arrange(desc(count))
+
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+write.csv(dRT10.2,"climate/climateRetweetSpeed.csv",row.names = F)
+
+
+# Retweets over time (per day) repeated measured --------------------------
+
+
+
 
 # Network of tweets ------------------------------------------------------
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
+dNet <- tbl_df(read.csv("joinedRTs.csv",header=T,sep=",")) %>% 
+  transmute(Source=author,Target=retweeter,topic=topic,cond=cond)
+df <- tweetsToDF(tweets)
+names(df) <- c("Source", "Target")
+
+
+dNet <- tbl_df(read.csv("joinedRTs.csv",header=T,sep=",")) %>% 
+  mutate(party=ifelse(tID+rtID<0,"L","R"),
+         jointID=tID+rtID)
+df <- dNet[1:2000,] 
+
+library(igraph)
+g <- graph.data.frame(df, directed=TRUE) ## network object
+
+# bad.vs<-V(g)[degree(g)<3] #identify those vertices part of less than three edges
+# g<-delete.vertices(g, bad.vs) #exclude them from the graph
+
+# g <- graph.edgelist(as.matrix(df), directed=TRUE) ## network object
+set.seed(12345)
+l <- layout.fruchterman.reingold(g)
+d <- data.frame(l); names(d) <- c("x", "y") ## data frame for plot
+d$id <- V(g)$name ## adding names
+d$degree <- degree(g)
+d <- merge(d, df, all.x=TRUE) ## adding party
+
+edgelist <- get.edgelist(g, names=FALSE) ## edgelist
+edges <- data.frame(d[edgelist[,1],c("x", "y")], d[edgelist[,2],c("x", "y")])
+names(edges) <- c("x1", "y1", "x2", "y2") ## coordinates of each edge
+edges$party <- NA
+edges$jointID <- NA
+
+# coords <- layout_(g1, as_star())
+# plot(g1, layout = coords)
+
+
+# 4) creating plot with ggplot2
+
+# library(ggplot2)
+p <- ggplot(d, aes(x=x, y=y, fill=party, size=degree))
+pq <- p + geom_segment(
+  aes(x=x1, y=y1, xend=x2, yend=y2), 
+  data=edges, color="grey20", size=0.25, alpha=1/10) +
+  geom_point(aes(size=degree), color="grey20", shape=21) +
+  scale_size_continuous(range=c(2,7)) +
+  # scale_fill_manual(values=c("blue", "red")) + 
+  theme(
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    axis.line = element_blank(), axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    axis.title = element_blank(), panel.border = element_blank(), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank()
+  )
+pq
 
 
 
