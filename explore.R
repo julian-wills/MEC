@@ -639,6 +639,7 @@ dGM %>% group_by(cond) %>% filter(M==1) %>% top_n(3,wt=count) %>% select(text) %
 
 
 # Persistence of tweets ---------------------------------------------------
+
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
 
 dAll <- tbl_df(read.csv("allRTSummary.csv",header=T,sep=",")) %>% 
@@ -722,8 +723,8 @@ dRT10 <- dRT10 %>%
   select(RTid=retweeted_status.id_str,speedHrs,origIdeo,meanIdeo:rangeIdeo,topic,cond,time1,time10) 
 
 
-dRT10 %>% group_by(cond) %>% summarise_each(funs(mean),speedHrs:rangeIdeo) %>% 
-  mutate(diffIdeo=abs(origIdeo-meanIdeo))
+# dRT10 %>% group_by(cond) %>% summarise_each(funs(mean),speedHrs:rangeIdeo) %>% 
+#   mutate(diffIdeo=abs(origIdeo-meanIdeo))
 # should maybe do this analysis on the top 10%
   
 # load in persist tweets
@@ -762,13 +763,53 @@ dRT10.3 <- dRT10.2 %>% left_join(dRT.Day) %>% select(RTid:count,RTperDay,speedHr
   ungroup() %>% arrange(desc(count))
 
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
-write.csv(dRT10.2,"climate/climateRetweetSpeed.csv",row.names = F)
+write.csv(dRT10.3,"climate/climateRetweetSpeed.csv",row.names = F)
 
 
 # Retweets over time (per day) repeated measured --------------------------
 
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+dTime <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% filter(topic=="C")
+dTime2 <- dTime %>% mutate(retweeted_status.id_str=ifelse(orig==1,id_str,retweeted_status.id_str)) %>% 
+  group_by(retweeted_status.id_str) %>% mutate(timestamp=as.POSIXct(timestamp)) %>% 
+  mutate(minsPassed=as.numeric(timestamp-min(timestamp))/60) %>% 
+  mutate(cumsum1=row_number())
+  
+dTime3 <- dTime2 %>% filter(orig2==1) %>% mutate(cumsum1=row_number()) %>% 
+  group_by(cumsum1,cond) %>% summarise(minsPassedM=mean(minsPassed))
+
+dTime4 <- dTime2 %>% filter(orig2==1,minsPassed>0) %>% mutate(cumsum1=row_number()) %>% 
+  group_by(cond)
+
+ggplot(dTime3,aes(x=minsPassedM,y=cumsum1,color=factor(cond))) +
+  geom_point(alpha=.3) +
+  scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) + xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  stat_smooth(method="lm") +
+  ggtitle("Retweet Frequency Over Time\n Each streak is One Tweet's Timeseries")
+
+ggplot(dTime4,aes(x=minsPassed,y=cumsum1,color=factor(cond))) +
+  geom_point(alpha=.1) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  coord_trans(x="log100") +
+  scale_x_continuous(breaks=c(.5,2,5,30,60,720,1440,10080)) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  stat_smooth(method="lm")
+scale_x_continuous()
+
+log100_trans = function() trans_new("log100", function(x) log(x,100), function(x) log(x,100))
+  
+  mutate(cumSum1=(minsPassed/minsPassed)+lag(minsPassed/minsPassed)) %>% select(cumSum1)
+
+dTime2 %>% group_by(cond) %>% summarise(minsPassed=mean(minsPassed))
 
 
+
+ggplot(dT2 %>% filter(cume_dist(desc(freq)) < 1), aes(freq, colour = cond, linetype = cond)) + 
+  stat_ecdf(lwd = .3) +
+hist(dTime2$minsPassed)
+ggplot
 
 # Network of tweets ------------------------------------------------------
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")

@@ -42,7 +42,8 @@ climateAppend = c("global warming","climate change",
 appendMoral(fs3,climateAppend) #swap tweets with these words from NM to M
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/split/filt/append/"))
 fs3 <- list.files(getwd(),".csv",full.names = T) 
-convertRetweet(fs3,w=T,lastTime = T) #uncomment to write .csv
+convertRetweet(fs3,w=T,lastTime=T) #uncomment to write .csv
+removeDupe(fs3)
 # dC <- convertRetweet(fs3)
 
 # examine top tweets
@@ -50,7 +51,7 @@ convertRetweet(fs3,w=T,lastTime = T) #uncomment to write .csv
 
 # write megatweet 
 fsAll <- c(fs1,fs2,fs3)
-writeSummaryTweets(fsAll,twFile=F,sumFile=F) #takes about 45 seconds to run
+writeSummaryTweets(fsAll,twFile=T,sumFile=T) #takes about 45 seconds to run
 
 # moral (gay marriage)
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/GayMarriage/gayMarriageMoral/split/"))
@@ -66,7 +67,7 @@ convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
 # tweets/day write csv ----------------------------------------------------
 
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets/"))
-dAll <- tbl_df(read.csv("allRetweets.csv",header=T,sep=",")) %>% 
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% 
   mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01"))
 plotDf <- count(dAll  %>% filter(orig==1,topic=="C"), cond, topic, day=day) %>% 
   mutate(day=as.Date(day-1, origin = "2015-01-01"))
@@ -77,7 +78,7 @@ write.csv(plotDf2,file.path(paste0("climate/climateRetweets.csv")),row.names = F
 
 # count of retweets, grouped by retweet and day
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets/"))
-dAll <- tbl_df(read.csv("allRetweets.csv",header=T,sep=",")) %>% 
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% 
   mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
   filter(!is.na(retweeted_status.id_str))
 plotDf <- count(dAll  %>% filter(topic=="C"), cond, topic, rtid=retweeted_status.id_str,day=day) %>% 

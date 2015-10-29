@@ -24,6 +24,39 @@ removeWord <- function(fs,s) { #removes list of words from all files
   write(s, file.path("filt","removedWords.txt"), sep = "\n")
 }
 
+removeDupe<- function(fs) {
+  dAll <- NULL
+  dir.create(file.path(getwd(), paste0("NoDupe")),showWarnings = F)
+  for (f in fs) {
+    df <- tbl_df(read.csv(f,header=T,sep=",")) 
+    s2 = strsplit(f, ".csv") %$% strsplit(.[[1]],"/") %$% strsplit(.[[1]] %>% last(),"_") 
+    topic = s2[[1]][1] #parse topic 
+    cond = paste(s2[[1]][2],s2[[1]][3],sep="") #parse condition
+    df %<>% mutate(M=ifelse(cond=="ME"|cond=="MNE","M","NM"),
+                                     E=ifelse(cond=="ME"|cond=="NME","E","NE")) #add subset and label
+    M = df %>% distinct(M) %>% select(M) %>% unlist()
+    E = df %>% distinct(E) %>% select(E) %>% unlist()
+    print(paste("loaded",f))
+    fname=paste0(paste(c(topic,M,E),collapse="_"),".csv")
+    df %>% distinct(id_str) %>%  write.csv(file.path("NoDupe",paste0(paste(fname,collapse="_"))),row.names = F)
+    print(paste("removed duplicate tweets from",f))
+  }
+  # s
+#   dAll %<>% mutate(M=ifelse(grepl(paste(s,collapse="|"),
+#                                   removePunctuation(tolower(text)))|M=="M","M","NM"),cond=paste0(M,E))
+#   print(paste("swapped words:",s),sep=" | ")
+#   dir.create(file.path(getwd(), paste0("NoDupe")),showWarnings = F)
+#   for (c in   dAll %>%  distinct(cond) %$% cond) {
+#     M = dAll %>% filter(cond==c) %>% distinct(M) %>% select(M) %>% unlist()
+#     E = dAll %>% filter(cond==c) %>% distinct(E) %>% select(E) %>% unlist()
+#     fname=paste0(paste(c(topic,M,E),collapse="_"),".csv")
+#     dAll %>% filter(cond==c) %>% select(-M,-E,-cond) %>% distinct(id_str) %>% 
+#       write.csv(file.path("NoDupe",paste0(paste(fname,collapse="_"))),row.names = F)
+#     print(paste("removed duplicate tweets from",fname))
+#   }
+#   write(s, file.path("append","appendedWords.txt"), sep = "\n")
+}
+
 # f=fs3[4] fs=fs3 s="fossil"
 # dAll %>% filter(M=="NM")  %>% select(M) 
 # dAll2 %>% filter(M=="NM")  %>% select(M) 
@@ -206,7 +239,7 @@ writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T) {
   }
   if (sumFile==T) {
     print(paste("writing allRTSummary.csv..."))
-    write.csv(d.retweetSum,"allRTSummary2.csv",row.names=F); 
+    write.csv(d.retweetSum,"allRTSummary.csv",row.names=F); 
   }
   toc()
 }
