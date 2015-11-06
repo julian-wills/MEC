@@ -791,32 +791,127 @@ ggplot(dTime3,aes(x=minsPassedM,y=cumsum1,color=factor(cond))) +
 ggplot(dTime4,aes(x=minsPassed,y=cumsum1,color=factor(cond))) +
   geom_point(alpha=.1) +
   # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
-  coord_trans(x="log100") +
+  coord_trans(x="log10000") +
   scale_x_continuous(breaks=c(.5,2,5,30,60,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets")
+
+log10000_trans = function() trans_new("log10000", function(x) log(x,10000), function(x) log(x,10000))
+exp10_trans = function() trans_new("exp10", function(x) exp(x,10), function(x) exp(x,10))
+
+library(dplyr)
+cum_var <- function(x){
+  n <- 1:length(x)
+  (cumsum(x^2)-n*cummean(x)^2)/(n-1)
+}
+
+dTime4 %<>% rename(ideo=ideology_estimate)
+dTime4 <- dTime4 %>% group_by(retweeted_status.id_str) %>% mutate(diffIdeo=abs(ideo-lag(ideo)))
+dTime4 <- dTime4 %>% group_by(retweeted_status.id_str) %>%
+  mutate(avgIdeo=cummean(ideo),devIdeo=abs(ideo-avgIdeo),varIdeo=cum_var(ideo)) 
+
+ggplot(dTime4,aes(x=minsPassed,y=cumsum1)) +
+  geom_point(size=2,alpha=.05) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  # scale_colour_gradient2(low="blue", high="red",limits=c(-2,2)) +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
   xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
   ylab("Cumulative Count of Retweets") +
-  stat_smooth(method="lm")
-scale_x_continuous()
+  facet_wrap( ~ cond,nrow=2)
 
-log100_trans = function() trans_new("log100", function(x) log(x,100), function(x) log(x,100))
-  
-  mutate(cumSum1=(minsPassed/minsPassed)+lag(minsPassed/minsPassed)) %>% select(cumSum1)
+ggplot(dTime4,aes(x=minsPassed,y=cumsum1,color=ideo)) +
+  geom_point(size=2,alpha=.5) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  scale_colour_gradient2(mid="grey", low="blue", high="red",limits=c(-2,2)) +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
 
-dTime2 %>% group_by(cond) %>% summarise(minsPassed=mean(minsPassed))
+ggplot(dTime4 %>% filter(ideo<0),aes(x=minsPassed,y=cumsum1,color=ideo)) +
+  geom_point(size=2,alpha=1) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  scale_colour_gradient2(low="blue", high="red",limits=c(-2,2)) +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
 
+ggplot(dTime4 %>% filter(ideo>0),aes(x=minsPassed,y=cumsum1,color=ideo)) +
+  geom_point(size=2,alpha=1) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  scale_colour_gradient2(low="blue", high="red",limits=c(-2,2)) +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
+
+# difference in ideology (ugly plot)
+ggplot(dTime4,aes(x=minsPassed,y=cumsum1,color=diffIdeo)) +
+  geom_point(size=2,alpha=.5) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  # scale_colour_gradient2(low="blue", high="red",limits=c(-2,2)) +
+  scale_color_continuous(low="white",high="red") +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  theme(panel.background = element_rect(fill = "black")) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
+
+# which tweets attract bipartisan support?
+ggplot(dTime4 %>% filter(varIdeo<2),aes(x=minsPassed,y=cumsum1,color=varIdeo)) +
+  geom_point(size=2,alpha=.8) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  # scale_colour_gradient2(low="blue", high="red",limits=c(-2,2)) +
+  scale_color_continuous(low="white",high="red") +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  theme(panel.background = element_rect(fill = "grey")) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
+
+# do bipartisan tweets get retweeted more or less?
+ggplot(dTime4 %>% filter(varIdeo<2.5),aes(x=minsPassed,y=cumsum1,color=ideo)) +
+  geom_point(aes(size=varIdeo),alpha=.9) +
+  # scale_x_log10(breaks=c(30,60,360,720,1440,2880,10080)) +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  # scale_color_continuous(low="white",high="red") +
+  coord_trans(x="log10000") +
+  scale_x_continuous(breaks=c(.5,2,5,30,120,720,1440,10080)) +
+  scale_y_sqrt(breaks=c(1,5,10,50,100,250,500,750,1000)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Minuted Passed Since Initial Tweet (Log Scale)") + 
+  ylab("Cumulative Count of Retweets") +
+  facet_wrap( ~ cond,nrow=2)
 
 
 ggplot(dT2 %>% filter(cume_dist(desc(freq)) < 1), aes(freq, colour = cond, linetype = cond)) + 
   stat_ecdf(lwd = .3) +
 hist(dTime2$minsPassed)
-ggplot
+
+save(dTime4,file="MC_time.RData")
 
 # Network of tweets ------------------------------------------------------
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/")
 dNet <- tbl_df(read.csv("joinedRTs.csv",header=T,sep=",")) %>% 
   transmute(Source=author,Target=retweeter,topic=topic,cond=cond)
-df <- tweetsToDF(tweets)
-names(df) <- c("Source", "Target")
+# df <- tweetsToDF(tweets) #SMaPP code
+# names(df) <- c("Source", "Target")
+
+# write.csv(dNet %>% filter(topic=="C"),"joinedRTs_Climate.csv",row.names = F) #climate only for Dominic
 
 
 dNet <- tbl_df(read.csv("joinedRTs.csv",header=T,sep=",")) %>% 
@@ -870,7 +965,240 @@ pq <- p + geom_segment(
 pq
 
 
+# wordclouds --------------------------------------------------------------
+require(quanteda)
 
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+dWord <- tbl_df(read.csv("allTweets.csv",header=T,sep=",")) %>% filter(topic=="C")
+
+# most frequent MORAL EMOTIONAL tweets
+dWordME <- dWord %>% filter(cond=="ME")
+tweetCorpus <- corpus(dWordME$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are conservatives tweeting about?
+dWordR <- dWordME %>% filter(meanID>0)
+tweetCorpus <- corpus(dWordR$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="red")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are liberals tweeting about?
+dWordL <- dWordME %>% filter(meanID<0)
+tweetCorpus <- corpus(dWordL$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="blue")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+
+
+
+# most frequent NONMORAL EMOTIONAL tweets
+dWordNME <- dWord %>% filter(cond=="NME")
+tweetCorpus <- corpus(dWordNME$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are conservatives tweeting about?
+dWordR <- dWordNME %>% filter(meanID>0)
+tweetCorpus <- corpus(dWordR$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="red")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are liberals tweeting about?
+dWordL <- dWordNME %>% filter(meanID<0)
+tweetCorpus <- corpus(dWordL$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="blue")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+
+
+
+
+
+# most frequent MORAL UNEMOTIONAL tweets
+dWordMNE <- dWord %>% filter(cond=="MNE")
+tweetCorpus <- corpus(dWordMNE$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+
+# what are conservatives tweeting about?
+dWordR <- dWordMNE %>% filter(meanID>0)
+tweetCorpus <- corpus(dWordR$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="red")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are liberals tweeting about?
+dWordL <- dWordMNE %>% filter(meanID<0)
+tweetCorpus <- corpus(dWordL$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="blue")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+
+
+
+# most frequent NONMORAL UNEMOTIONAL tweets
+dWordNMNE <- dWord %>% filter(cond=="NMNE")
+tweetCorpus <- corpus(dWordNMNE$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are conservatives tweeting about?
+dWordR <- dWordNMNE %>% filter(meanID>0)
+tweetCorpus <- corpus(dWordR$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="red")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+# what are liberals tweeting about?
+dWordL <- dWordNMNE %>% filter(meanID<0)
+tweetCorpus <- corpus(dWordL$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c("t.co","http","climate","change",stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="blue")
+
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+summary(tweetCorpus)
+
+lexdiv(tweetDfm, "R")
+dotchart(sort(lexdiv(tweetDfm, "R")))
+
+readab <- readability(tweetCorpus, measure = "Flesch.Kincaid")
+dotchart(sort(readab))
+
+# similarity(tweetDfm, method="cosine")
+hist(sort(lexdiv(tweetDfm, "R")))
+hist(readability(tweetCorpus, measure = "Flesch.Kincaid"))
+hist(ntoken(tweetCorpus)) # how many tokens (total words)
+hist(ntype(tweetCorpus)) # how many types (unique words)
+topfeatures(tweetDfm)
+
+
+
+# Descriptive/Distributions - SMaPP presentation --------------------------
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+dCAll <- tbl_df(read.csv("allTweets.csv",header=T,sep=",")) %>% filter(topic=="C") 
+dCAll %>% select(timestamp) %>% filter(row_number()==1) #when was beginning?
+dCAll %>% select(timestamp) %>% filter(row_number()==n()) #when was end?
+(nT.orig = dCAll %>% filter(is.na(retweeted_status.id_str)) %>% summarise(n()) )#how many of these are tweets?
+(nRT.orig <- dCAll %>% filter(retweeted_status.id_str>0) %>% summarise(n()))  #how many RTs overall?
+nRT.orig/(nT.orig+nRT.orig) #proportion of corpus that is RT
+
+dCRT <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% filter(topic=="C") 
+(nRT = dCRT %>% filter(retweeted_status.id_str>0) %>% summarise(n()))#how many RTs based on originals?
+(nT = dCRT %>% filter(is.na(retweeted_status.id_str)) %>% summarise(n()))#how many tweets gets retweeted?
+dCRT %>% summarise_each(funs(mean,sd,min,max),ideology_estimate) #ideology of final sample?
+
+require(quanteda)
+noisyWords = c("t.co","http","rt","u","009f")
+
+# most frequent words overall
+tweetCorpus <- corpus(dCAll$text, notes="Created as part of a demo.") 
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c(noisyWords,stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+
+                                
+for (c in dCRT %>% distinct(cond) %$% cond) {
+  print(paste("Descriptives for",c))
+  (ncRT = dCRT %>% filter(cond==c,retweeted_status.id_str>0) %>% summarise(n())) #how many RTs based on originals?
+  (ncT = dCRT %>% filter(cond==c,is.na(retweeted_status.id_str)) %>% summarise(n())) #how many tweets gets retweeted?
+  ncRT/nRT #proportion of corpus orig RTs
+  ncT/nT #proportion of corpus orig tweets
+
+  print(ncRT)
+  print(ncT)
+  print(ncRT/nRT)
+  print(ncT/nT)
+  
+  dCRT %>% filter(cond==c) %>% 
+    summarise_each(funs(mean,sd,min,max),ideology_estimate) %>% print() #ideology of condition?
+  
+  corpus(dCRT %>% filter(cond==c) %$% text) %>% 
+    dfm(ignoredFeatures = c(noisyWords,stopwords("english"))) %>% 
+          plot(random.order=F,random.color = F, max.words=80, rot.per = .1, colors="black")
+}
+
+
+
+dCRT %>% group_by(cond) %>% 
+  summarise(ncRT=)
+  
 ####### Ideology distributions for each topic
 
 # Old ideology histograms -------------------------------------------------

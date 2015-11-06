@@ -8,6 +8,16 @@ require(magrittr) || {install.packages("magrittr"); require(magrittr)}
 require(dplyr) || {install.packages("dplyr"); require(dplyr)}
 require(reshape2) || {install.packages("reshape2"); require(reshape2)}
 
+
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+dAll <- tbl_df(read.csv("joinedRTs.csv",header=T)) %>% rename(tid=tID,rtid=rtID)
+
 # load in RT summary files
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
 dG <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/Guns/split/filt/RT/","G_RT.csv"),header=T))
@@ -42,7 +52,25 @@ ideoHeatMap <- function(df) {
 }
 
 # create heatmap
-ggplot(ideoHeatMap(dGC), aes(x=y, y=x)) +
+ggplot(ideoHeatMap(dAll %>% filter(topic=="C")), aes(x=y, y=x)) +
+  geom_tile(aes(fill=prop), colour="white") +
+  scale_fill_gradient(name="% of\ntweets", 
+                      low = "white", high = "black", 
+                      breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+                      labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+  labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+       title="Ideological Correlations in Gun Control 2013 Tweets") + 
+  scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+  theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+  coord_equal()  +
+  facet_wrap(~ cond)
+
+
+# Latest climate data -----------------------------------------------------
+
+# create heatmap
+ggplot(ideoHeatMap(dAll %>% filter(topic=="C")), aes(x=y, y=x)) +
   geom_tile(aes(fill=prop), colour="white") +
   scale_fill_gradient(name="% of\ntweets", 
                       low = "white", high = "black", 

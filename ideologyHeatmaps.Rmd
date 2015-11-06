@@ -5,9 +5,7 @@ date: "October 20, 2015"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r, echo=FALSE, results='hide', include=FALSE}
 # load packages  --------------------------------------------------------
@@ -17,13 +15,14 @@ require(reshape2) || {install.packages("reshape2"); require(reshape2)}
 require(ggplot2) || {install.packages("ggplot2"); require(ggplot2)}
 
 
-# load in RT summary files
-setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
-dG <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/Guns/split/filt/RT/","G_RT.csv"),header=T))
-dM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/marriage/split/RT/","M_RT.csv"),header=T))
-dC <- tbl_df(read.csv(paste0(getwd(),"/","ClimateChange/Combined/split/filt/append/RT/",
-                             "C_RT.csv"),header=T))
-dAll <- rbind(dG,dM,dC)
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+dAll <- tbl_df(read.csv("joinedRTs.csv",header=T)) %>% rename(tid=tID,rtid=rtID)
 
 # Heat maps ---------------------------------------------------------------
 
@@ -100,14 +99,17 @@ ggplot(ideoHeatMap(dAll %>% filter(topic=="C")), aes(x=y, y=x)) +
   coord_equal()  +
   facet_wrap(~ cond)
 
+dAll %>% filter(topic=="C") %>% group_by(cond) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+  mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+
 # Incomplete data ---------------------------------------------------------
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
-dGM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/gayMarriageMoral/split/RT/","GM_RT.csv"),header=T))
-dGC <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/GC2013/filt/RT/","GC_RT.csv"),header=T))
-dAll <- rbind(dGM,dGC)
+dGM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/gayMarriageMoral/","joinedRTs.csv"),header=T)) %>%      rename(tid=tID,rtid=rtID)
+dGC <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/GC2013/","joinedRTs.csv"),header=T)) %>%                 rename(tid=tID,rtid=rtID)
+
 
 # create heatmap
-ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GC")), aes(x=y, y=x)) +
+ggplot(ideoHeatMap(dGC %>% filter(M==1)), aes(x=y, y=x)) +
   geom_tile(aes(fill=prop), colour="white") +
   scale_fill_gradient(name="% of\ntweets", 
                       low = "white", high = "black", 
@@ -121,8 +123,11 @@ ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GC")), aes(x=y, y=x)) +
   coord_equal()  +
   facet_grid(. ~ cond)
 
+dGC %>% group_by(cond) %>% filter(M==1) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+  mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+
 # create heatmap
-ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GM")), aes(x=y, y=x)) +
+ggplot(ideoHeatMap(dGM %>% filter(M==1)), aes(x=y, y=x)) +
   geom_tile(aes(fill=prop), colour="white") +
   scale_fill_gradient(name="% of\ntweets", 
                       low = "white", high = "black", 
@@ -135,6 +140,18 @@ ggplot(ideoHeatMap(dAll %>% filter(M==1,topic=="GM")), aes(x=y, y=x)) +
   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
   coord_equal()  +
   facet_grid(. ~ cond)
+
+dGM %>% group_by(cond) %>% filter(M==1) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+  mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+
+
+# old code
+# load in RT summary files
+# setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+# dG <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/Guns/split/filt/RT/","G_RT.csv"),header=T))
+# dM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/marriage/split/RT/","M_RT.csv"),header=T))
+# dC <- tbl_df(read.csv(paste0(getwd(),"/","ClimateChange/Combined/split/filt/append/RT/",
+#                              "C_RT.csv"),header=T))
+# dAll <- rbind(dG,dM,dC)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

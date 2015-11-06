@@ -51,17 +51,20 @@ removeDupe(fs3)
 
 # write megatweet 
 fsAll <- c(fs1,fs2,fs3)
-writeSummaryTweets(fsAll,twFile=T,sumFile=T) #takes about 45 seconds to run
+writeSummaryTweets(fsAll,twFile=T,sumFile=T) #takes about 1:15  to run
 
 # moral (gay marriage)
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/GayMarriage/gayMarriageMoral/split/"))
 fs2 <- list.files(getwd(),".csv",full.names = T) 
-convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
+# convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
+writeSummaryTweets(fs2,twFile=F,sumFile=F,dir=T) #uncomment to write .csv
+
 
 # moral (gun control)
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/GunControl/GC2013/filt/"))
 fs2 <- list.files(getwd(),".csv",full.names = T) 
-convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
+# convertRetweet(fs2,w=T,lastTime = T) #uncomment to write .csv
+writeSummaryTweets(fs2,twFile=F,sumFile=F,dir=T) #uncomment to write .csv
 
 
 # tweets/day write csv ----------------------------------------------------

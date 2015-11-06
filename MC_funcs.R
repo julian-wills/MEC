@@ -41,25 +41,7 @@ removeDupe<- function(fs) {
     df %>% distinct(id_str) %>%  write.csv(file.path("NoDupe",paste0(paste(fname,collapse="_"))),row.names = F)
     print(paste("removed duplicate tweets from",f))
   }
-  # s
-#   dAll %<>% mutate(M=ifelse(grepl(paste(s,collapse="|"),
-#                                   removePunctuation(tolower(text)))|M=="M","M","NM"),cond=paste0(M,E))
-#   print(paste("swapped words:",s),sep=" | ")
-#   dir.create(file.path(getwd(), paste0("NoDupe")),showWarnings = F)
-#   for (c in   dAll %>%  distinct(cond) %$% cond) {
-#     M = dAll %>% filter(cond==c) %>% distinct(M) %>% select(M) %>% unlist()
-#     E = dAll %>% filter(cond==c) %>% distinct(E) %>% select(E) %>% unlist()
-#     fname=paste0(paste(c(topic,M,E),collapse="_"),".csv")
-#     dAll %>% filter(cond==c) %>% select(-M,-E,-cond) %>% distinct(id_str) %>% 
-#       write.csv(file.path("NoDupe",paste0(paste(fname,collapse="_"))),row.names = F)
-#     print(paste("removed duplicate tweets from",fname))
-#   }
-#   write(s, file.path("append","appendedWords.txt"), sep = "\n")
 }
-
-# f=fs3[4] fs=fs3 s="fossil"
-# dAll %>% filter(M=="NM")  %>% select(M) 
-# dAll2 %>% filter(M=="NM")  %>% select(M) 
 
 require(tm) || {install.packages("tm"); require(tm)}
 
@@ -168,7 +150,7 @@ tweetsPerDay<- function(fs) {
 }
 
 # function for creating megafiles
-writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T) {
+writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T,dir=F) {
   tic()
   d.allTweets <- NULL; d.corpRT <- NULL; d.join <- NULL; d.retweetSum <- NULL
   for (f in fs) {
@@ -225,6 +207,10 @@ writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T) {
     userDir <- "/Users/julian/GDrive" #Mac
   }
   setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets/"))
+  if (dir==T) { # change working directory 
+    strsplit(f,"/") %>% extract2(1) %>% extract(1:(length(.)-2)) %>% paste(collapse='/') %>% setwd
+  }
+  print(paste("writing outputs to",getwd()))
   if (twFile==T) {
     print(paste("writing allTweets.csv..."))
     write.csv(d.allTweets,"allTweets.csv")
