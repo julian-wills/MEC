@@ -107,3 +107,11 @@ setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/")
 write.csv(dC.All,"C_combined.csv",row.names = F)
 
 
+# Saving rdata ------------------------------------------------------------
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/climate/")
+save(dCAll,file="climateAll.RData")
+save(dCRT,file="climateRT.RData")
+save(dCjoin,file="climate_join.RData")
+save(dCRT.count,file="climateRT_cnt.RData")
+save(dCRTsum,file="climateRT_dvs.RData")
+save(dCjoin2,file="climate_joinCntIdeo.RData")

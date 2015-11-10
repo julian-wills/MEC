@@ -1,0 +1,666 @@
+---
+title: "Ideology Correlations for Moral/Emotional Contagion -- (w/o Topical Phrases)"
+author: "Julian Wills and Billy Brady"
+date: "November 5th, 2015"
+output: pdf_document
+---
+
+
+```{r, echo=F, results='hide', include=F}
+
+###TO DO:
+#- rerun analyses w/o username=20998647 (@weatherchannel) for NM_NE cell
+#- rename diffID back to sdID in dRT10 data
+
+
+# load packages  --------------------------------------------------------
+require(magrittr) || {install.packages("magrittr"); require(magrittr)}
+require(dplyr) || {install.packages("dplyr"); require(dplyr)}
+require(reshape2) || {install.packages("reshape2"); require(reshape2)}
+require(ggplot2) || {install.packages("ggplot2"); require(ggplot2)}
+source("C:/Users/Julian/GDrive/PGGfMRI/Behav/Scripts/helpFunc.r")
+
+
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dAll <- tbl_df(read.csv("joinedRTs.csv",header=T)) %>% rename(tid=tID,rtid=rtID)
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dCjoin <- tbl_df(read.csv("joinedRTs.csv",header=T,sep=",")) %>% mutate(diffID=sqrt(abs(tID-rtID)),ex.tID=abs(tID),ex.rtID=abs(rtID)) %>% 
+  filter(!author==20998647)
+
+dCjoin2 <- dCjoin %>% group_by(cond,author) %>% 
+  summarise(varID=sd(rtID),tID=mean(tID),rtID=mean(rtID),ex.tID=mean(ex.tID),ex.rtID=mean(ex.rtID),
+            M=mean(M),E=mean(E),count=n(),diffID=mean(abs(tID-rtID))) %>% 
+  mutate(diffID=abs(tID-rtID),count.Tr=log(log(count+1)+1),
+         meanID=(tID+rtID)/2,count.Tr2=count/sum(count),varID.Tr=sqrt(varID),
+         diffID.Tr=sqrt(diffID)) %>% arrange(desc(count))
+
+load("climateRT10_dvs.RData") #top retweet data
+
+dCRT10 %<>% mutate(diffID.Tr=sqrt(diffID))
+
+```
+
+
+#Variable Guide:
+###tID = ideology of original tweet author (negative = liberal; 0 = centrist; postive = conservative)
+###rtID = ideology of retweeter (in most cases, averaged per tweet)
+###ex.tID = ideological extremity (i.e. absolute value) of author (0 = centrist)
+###ex.rtID = ideological extremity (i.e. absolute value) of retweeter 
+###diffID = ideological difference (absolute value) between author and (avg.) retweeter (0 = no difference)
+###M = moral (1); nonmoral (-1)
+###E = emotional (1); unemotional (-1)
+###cond = Four Conditions: M_E, M_NE, NM_E, NM_NE
+
+***
+
+#Correlations, Linear Models, and Unpacking Interactions
+
+***
+
+## What's the relation between ideological diversity and virality?
+```{r}
+dCjoin %<>% mutate(meanID=(tID+rtID)/2,
+                   ideoSim=1/diffID)
+
+dCjoin %>% group_by(cond) %>% summarise(Corr.T.RT=cor(tID,rtID)) %>% mutate_each(funs(round(.,2)),2)
+
+ggplot(dCjoin,aes(x=tID,y=rtID,color=meanID)) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="lm",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+ggplot(dCjoin,aes(x=tID,y=rtID,color=meanID)) + 
+  geom_point(alpha=.5,aes(size=diffID)) +
+  geom_smooth(method="lm",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+ggplot(dCRT10,aes(x=tID,y=rtID,color=tID)) + 
+  geom_point(alpha=1,aes(size=RTperDay.Tr)) +
+  geom_smooth(method="loess",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+ggplot(dCRT10,aes(x=tID,y=rtID,color=tID)) + 
+  geom_point(alpha=1) +
+  geom_smooth(method="loess",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+ggplot(dCRT10,aes(x=tID,y=rtID,color=tID)) + 
+  geom_point(alpha=1,aes(size=RTperDay.Tr)) +
+  geom_smooth(method="loess",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+
+ggplot(dCjoin2,aes(x=tID,y=rtID,color=meanID)) + 
+  geom_point(alpha=1) +
+  # geom_smooth(method="loess",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+ggplot(dCjoin2,aes(x=tID,y=rtID,color=meanID)) + 
+  geom_point(alpha=1,aes(size=count.Tr)) +
+  geom_smooth(method="loess",color="black") +
+  scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(-2,2)) +
+  theme(panel.background = element_rect(fill = "white")) +
+  xlab("Ideology of Tweet Author") + ylab("Ideology of (Average) Retweeter") +
+  facet_wrap("cond",nrow = 2)
+
+# ggplot(dCjoin2 %>% filter(varID.Tr>0),aes(x=tID,y=rtID,color=varID.Tr)) + 
+#   geom_point(alpha=1,aes(size=count.Tr)) +
+#   # geom_smooth(method="loess",color="black") +
+#   scale_colour_gradient(low="grey",high="purple",limits=c(0,1.5)) +
+#   theme(panel.background = element_rect(fill = "white")) +
+#   xlab("Ideology of Tweet Author") + ylab("Ideology of (Average) Retweeter") +
+#   facet_wrap("cond",nrow = 2)
+
+# ggplot(dCjoin2,aes(x=tID,y=rtID,color=diffID)) + 
+#   geom_point(alpha=1,aes(size=count.Tr2)) +
+#   geom_smooth(method="loess",color="black") +
+#   # scale_colour_gradient2(low="blue", mid="grey",high="red",limits=c(0,4)) +
+#   theme(panel.background = element_rect(fill = "white")) +
+#   xlab("Ideology of Tweet Author") + ylab("Ideology of (Average) Retweeter") +
+#   facet_wrap("cond",nrow = 2)
+
+```
+
+***
+
+
+
+## Output of Models
+```{r}
+
+# after adjusting for ideology of author, retweeters, and ideological extremity
+lm(diffID ~ tID+rtID*M+rtID*E+M*E,data=dCjoin2) %>% summary() #main model
+
+# morality plays a bigger role than emotion when it comes to ideological diversity
+lm(diffID ~ tID+rtID+ex.tID*M+ex.tID*E,data=dCjoin2) %>% summary() #emo int w/ ex.tID
+lm(diffID ~ tID+rtID+rtID*M+rtID*E,data=dCjoin2) %>% summary() #emo int w/ rtID
+lm(diffID ~ tID+rtID+tID*M+tID*E,data=dCjoin2) %>% summary()
+
+lm(diffID ~ ex.tID+ex.rtID*M+ex.rtID*E+M*E,data=dCjoin2) %>% summary() #huge morality interaction
+lm(diffID ~ ex.tID*ex.rtID*M+ex.rtID*E+M*E,data=dCjoin2) %>% summary() #morality 3-way interaction
+```
+
+***
+
+
+#Plots:
+
+
+## In a moral context, emotional tweets accrue even narrower support
+```{r}
+# hist(dCjoin2$diffID.Tr)
+# dCjoin2 %<>% mutate(diffID.Tr=sqrt(diffID))
+
+ggplot(dCjoin2,aes(x=M,y=diffID.Tr,color=factor(E))) + 
+  geom_smooth(method="lm")
+
+
+dCjoin.S <- dCjoin2 %>% group_by(cond) %>% summarise(mean=mean(diffID.Tr),se=sd(diffID)/sqrt(n()))
+ggplot(dCjoin.S,aes(x=cond,y=mean)) + 
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),
+                width=.2,                    # Width of the error bars
+                position=position_dodge(.9)) +
+  xlab("Condition") +
+  ylab("Ideological Variability")
+```
+
+# Morality narrows ideological clustering, especially when it's emotional
+
+***
+
+```{r}
+# people are more likely to retweet authors of similar ideology
+# emotion attenuates this relationship, but only if tweet is nonmoral
+ggplot(dCjoin2,aes(x=diffID.Tr,y=count.Tr )) + 
+  geom_smooth(method="lm",aes(color=cond)) +
+  xlab("Ideological Difference between Author and Retweeters") +
+  ylab("Number of Times Author gets Retweeted")
+
+# dCRT10 %<>% mutate(diffID=abs(tID-rtID),diffID.Tr=sqrt(diffID))
+
+#Viral tweets accrue wider ideological support
+pairPlot(dCRT10 %>% select(RTperDay.Tr,count,RTperDay,diffID,diffID.Tr))
+
+ggplot(dCRT10,aes(x=diffID.Tr,y=RTperDay.Tr )) + 
+  geom_smooth(method="lm",aes(color=factor(cond))) +
+  xlab("Ideological Difference between Author and Retweeters") +
+  ylab("Number of Times Author gets Retweeted")
+
+dCRT10 %>% group_by(cond) %>% 
+  summarise(cor(tID,rtID),cor(diffID.Tr,RTperDay.Tr),cor(diffID.Tr,persistDays.Tr),cor(diffID.Tr,speedHrs.Tr))
+
+# Viral tweets are less ideologically broad when moral. 
+ggplot(dCRT10,aes(x=diffID.Tr,y=RTperDay.Tr )) + 
+  geom_smooth(method="lm",aes(color=factor(M))) +
+  # facet_wrap(factor("M")) +
+  xlab("Ideological Difference between Tweet Author and Retweeters") +
+  ylab("Number of Times Tweet gets Retweeted")
+
+# Virality speed of tweets are less ideologically broad when moral. 
+# Maybe small effect where emotion broadens ideologically diversity
+ggplot(dCRT10,aes(x=diffID.Tr,y=speedHrs.Tr )) + 
+  geom_smooth(method="lm",aes(color=factor(M))) +
+  xlab("Ideological Difference between Tweet Author and Retweeters") +
+  ylab("Speed of Virality (10 Retweets)")
+ggplot(dCRT10,aes(x=diffID.Tr,y=speedHrs.Tr)) + 
+  geom_smooth(method="lm",aes(color=factor(E))) +
+  xlab("Ideological Difference between Tweet Author and Retweeters") +
+  ylab("Speed of Virality (10 Retweets)")
+
+# Ideologically similar tweets persist longer if they are emotional, but nonmoral (potential 3-way interaction)
+ggplot(dCRT10,aes(x=diffID.Tr,y=persistDays.Tr)) + 
+  geom_smooth(method="lm",aes(color=factor(E))) +
+  facet_wrap("M") +
+  xlab("Ideological Difference between Tweet Author and Retweeters") +
+  ylab("Persistence of Tweets")
+
+# Viral tweets tend to originate from nonextremists.
+# Peristent tweets are sustained by extremists
+pairPlot(dCRT10 %>% select(persistDays.Tr,persistDays,RTperDay,RTperDay.Tr,count,tID,rtID,ex.tID,ex.rtID))
+
+# viral moral tweets are driven by centrists
+ggplot(dCRT10,aes(x=ex.tID,y=RTperDay.Tr,color=factor(M))) + 
+  geom_smooth(method="lm") +
+  xlab("Ideological Extremity of Tweet Author") +
+  ylab("Retweets per Day (Transformed)")
+
+# In nonmoral context, emotionally viral tweets are driven by centrists, whereas nonemotional tweets are driven by extremists
+ggplot(dCRT10,aes(x=ex.rtID,y=RTperDay.Tr,color=factor(cond))) + 
+  geom_smooth(method="lm")
+
+# Emotionally persistent tweets are driven by centrists, unless moral (then extremists)
+ggplot(dCRT10,aes(x=ex.rtID,y=persistDays.Tr)) + 
+  geom_smooth(method="lm",aes(color=factor(M))) +
+  facet_wrap("E")
+
+ggplot(dCjoin2,aes(x=rtID,y=diffID,color=factor(cond))) + 
+  geom_smooth(method="loess")
+ggplot(dCjoin2,aes(x=tID,y=rtID,color=factor(cond))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="loess")
+```
+
+* People are more likely to retweet authors of similar ideology emotion attenuates this relationship, but only if tweet is nonmoral
+* Viral tweets accrue wider ideological support
+* Viral tweets are less ideologically broad when moral. 
+* Virality speed of tweets are less ideologically broad when moral. Maybe small effect where emotion broadens ideologically diversity
+* Ideologically similar tweets persist longer if they are emotional, but nonmoral (potential 3-way interaction)
+* Viral tweets tend to originate from nonextremists.
+* Peristent tweets are sustained by extremists
+* viral moral tweets are driven by centrists
+* In nonmoral context, emotionally viral tweets are driven by centrists, whereas nonemotional tweets are driven by extremists
+* Emotionally persistent tweets are driven by centrists, unless moral (then extremists)
+
+***
+
+## Morality drives ideological clustering more than emotion (though emotion helps in nonmoral context)
+```{r}
+ggplot(dCjoin2,aes(x=tID,y=rtID,color=factor(E))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="loess") +
+  facet_grid(~M)
+
+ggplot(dCjoin2,aes(x=tID,y=rtID,color=factor(E))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="lm") +
+  facet_grid(~M)
+```
+
+***
+
+## Narrower clusters for moral tweets, especially for liberals when they are emotional
+```{r}
+ggplot(dCjoin2,aes(x=rtID,y=diffID,color=factor(E))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="loess") +
+  facet_grid(~M)
+```
+
+***
+
+## On raw data, before clustering retweeters w/ original author. Vert/Horz lines reflect active users?
+```{r}
+ggplot(dCjoin,aes(x=tID,y=rtID,color=factor(E))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="lm") +
+  facet_grid(~M)
+
+```
+
+***
+
+## In a moral context, emotional tweets accrue even narrower support
+```{r}
+ggplot(dCjoin2,aes(x=M,y=diffID,color=factor(E))) + 
+  geom_smooth(method="lm")
+```
+
+***
+
+## Political extremists retweet same ideology if tweet has moral content
+```{r}
+ggplot(dCjoin2,aes(x=ex.rtID,y=diffID,color=factor(M))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="loess") 
+ggplot(dCjoin2,aes(x=ex.rtID,y=diffID,color=factor(M))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="lm")
+```
+
+***
+
+## More extremism (author and retweeter) when content is moral 
+```{r}
+ggplot(dCjoin2,aes(x=ex.rtID,y=ex.tID,color=factor(M))) + 
+  geom_smooth(method="loess") 
+ggplot(dCjoin2,aes(x=ex.rtID,y=ex.tID,color=factor(M))) + 
+  geom_smooth(method="lm")
+```
+
+***
+
+## Ideologically Extreme Tweeters Accrue Narrower Support for Moral Tweets
+```{r}
+ggplot(dCjoin2,aes(x=ex.tID,y=diffID,color=factor(M))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="loess") +
+  xlab("Ideological Extremity of Original Tweet Author") +
+  ylab("Ideological Distance of Retweeters") +
+  ggtitle("Comparing Ideological Similarity of Author/Retweeters\n for Moral and Nonmoral Tweets (Loess Line)")
+
+ggplot(dCjoin2,aes(x=ex.tID,y=diffID,color=factor(M))) + 
+  geom_point(alpha=.1) +
+  geom_smooth(method="lm") +
+  xlab("Ideological Extremity of Original Tweet Author") +
+  ylab("Ideological Distance of Retweeters") +
+  ggtitle("Comparing Ideological Similarity of Author/Retweeters\n for Moral and Nonmoral Tweets (Linear Fit)")
+```
+
+***
+
+#Code for heatmaps
+```{r}
+# # Heat maps ---------------------------------------------------------------
+# 
+# ## functions to construct heatmaps
+# min <- -3.5
+# max <- 3.5
+# breaks <- 0.25
+# 
+# expand_data <- function(df, breaks=0.10, min=-4, max=4){
+#   x <- df$rtid %>% as.numeric()
+#   y <- df$tid %>% as.numeric()
+#   x <- (round((x - min) / breaks, 0) * breaks) + min
+#   y <- (round((y - min) / breaks, 0) * breaks) + min
+#   tab <- table(x, y)
+#   tab <- melt(tab)
+#   tab$prop <- tab$value/sum(tab$value)
+#   return(tab)
+# }
+# 
+# ideoHeatMap <- function(df) { 
+#   new.xy.me <- expand_data(df %>% filter(cond=="ME"),breaks=0.25) %>%  mutate(cond="ME")
+#   new.xy.nme <- expand_data(df %>% filter(cond=="NME"),breaks=0.25) %>% mutate(cond="NME")
+#   new.xy.mne <- expand_data(df %>% filter(cond=="MNE"),breaks=0.25) %>% mutate(cond="MNE")
+#   new.xy.nmne <- expand_data(df %>% filter(cond=="NMNE"),breaks=0.25) %>%  mutate(cond="NMNE")
+#   return (rbind(new.xy.me,new.xy.nme,new.xy.mne,new.xy.nmne))
+# }
+```
+
+
+
+***
+***
+***
+
+
+
+#Virality and Ideology
+
+```{r}
+
+
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+
+dCRT10 <- tbl_df(read.csv("climate/climateRetweetSpeed.csv",header=T,sep=",")) %>% 
+  filter(!is.na(cond)) %>% 
+  rename(tID=ID.0,rtID=meanID,diffID=sdID) %>% mutate(ex.tID=abs(tID),ex.rtID=abs(rtID)) %>% 
+  mutate(M=ifelse(cond=="ME"|cond=="MNE",1,-1),E=ifelse(cond=="ME"|cond=="NME",1,-1)) %>% 
+  mutate(diffID=sqrt(diffID),RTperDay.Tr=sqrt(log(RTperDay+1)),
+         persistDays.Tr=log(log(persistDays+1)),
+         speedHrs.Tr=log(1/speedHrs))
+
+
+# hist(sqrt(dCRT10$diffID)) #sqrt transform to make more normal
+hist(sqrt(log(dCRT10$RTperDay+1))) #sqrt + log + 1 --> more normal
+hist(log(log(dCRT10$persistDays+1,10))) #sqrt + log + 1 --> more normal
+hist(1/(log(dCRT10$speedHrs+1))^.15) #most normal
+
+hist(log(1/dCRT10$speedHrs))
+
+
+# morality plays a bigger role than emotion when it comes to ideological diversity
+lm(diffID ~ tID+rtID+ex.tID+ex.rtID+M+E,data=dCRT10) %>% summary() #main effects
+lm(diffID ~ tID+rtID+ex.tID+ex.rtID+M*E,data=dCRT10) %>% summary() #interactions
+
+
+# which tweets predict retweets per day?
+lm(RTperDay.Tr ~ tID+rtID+ex.tID+ex.rtID+M+E+diffID,data=dCRT10) %>% summary() #main effects
+
+lm(persistDays ~ tID+rtID+ex.tID+ex.rtID+M+E,data=dCRT10) %>% summary() #emo int w/ ex.tID
+lm(speedHrs ~ tID+rtID+ex.tID+ex.rtID+M+E,data=dCRT10) %>% summary() #emo int w/ ex.tID
+
+lm(diffID ~ ex.tID+ex.rtID*M+ex.rtID*E+M*E,data=dCRT10) %>% summary() #Moral/Emo interaction
+```
+
+Model 1:
+* Main effects: Morality/Emotion increase ideological clustering. 
+* Checks: Tweets that accrue politically extreme support are less diverse. 
+
+Model 2:
+* Main effects: Now, only morality increases ideological clustering
+* Interaction: this effect of morality is boosted when tweets are emotional
+
+
+Retweets per Day:
+Model 1: 
+* Main effects: viral tweets associated with more liberal/extreme (re)tweeters. 
+* Interaction: this effect of morality is boosted when tweets are emotional
+
+#Plots:
+
+```{r}
+# pairPlot(dCRT10 %>% select(tID,rtID,ex.tID,ex.rtID,diffID,M,E,RTperDay.Tr,persistDays.Tr,speedHrs.Tr))
+
+```
+##Correlations/Scatterplots/LOESS
+* Retweets/day associated w/ ideological diversity, conservative tweeters, nonmoral/nonemotional content (?),  and faster virality. 
+* Persistent tweets associated w/ ideological clustering, politically extreme retweeters, and moral/emotional content 
+* Speed of virality is associated w/ centrist (re)tweeters, ideological diversity, and nonmoral/nonemotional content(?)
+
+***
+
+```{r}
+lm(RTperDay.Tr ~ tID+diffID+speedHrs.Tr+M+E,data=dCRT10) %>% summary() #main effects
+lm(RTperDay.Tr ~ tID+diffID+speedHrs.Tr+M*E,data=dCRT10) %>% summary() #main effects
+
+lm(RTperDay.Tr ~ tID+rtID+ex.tID+ex.rtID+M+E+diffID,data=dCRT10) %>% summary() #main effects
+lm(RTperDay.Tr ~ tID+rtID+ex.tID+ex.rtID+M*E*diffID,data=dCRT10) %>% summary() #main effects
+
+# speed
+lm(speedHrs.Tr ~ ex.tID+ex.rtID+M+E+M*diffID,data=dCRT10) %>% summary() #main effects
+
+# persistence
+lm(persistDays.Tr ~ ex.rtID+M+E+diffID,data=dCRT10) %>% summary() #main effects
+lm(persistDays.Tr ~ ex.rtID+M*E+diffID,data=dCRT10) %>% summary() #main effects
+
+
+```
+Virality:
+* M1: virality associated w/ conservative tweeters, ideological clustering, and moral content. No interaction of moral/emotion. 
+* M2: Interaction w/ diversity, moral/emotional
+
+Speed:
+* M1: virality speed is predicted by centrist tweeters and more political diversity. At first, main effect of morality -- but seems this is due to larger political diversity of nonmoral condition. 
+
+Persistence:
+* M1: main effects of morality and emotion seem to wash out the other associations w/ retweeter extremism and political diversity. 
+* M2: Main effects persist, but no interaction. 
+
+Conclusions: 
+1. Virality and Speed are strongly associated w/ ideological diversity
+2. Moral/Emotion interact with this relationship ^^ (still need to unpack)
+3. Moral/emotional tweets persist longer
+
+***
+
+```{r}
+ggplot(dCRT10,aes(x=diffID,y=RTperDay.Tr,color=cond)) + 
+  geom_point(alpha=.6) +
+  geom_smooth(method="lm")
+  # facet_wrap("cond",nrow=2)
+
+```
+
+```{r}
+
+ggplot(dCRT10,aes(x=tID,y=diffID,color=factor(cond))) + 
+  geom_smooth(method="loess")
+ggplot(dCRT10,aes(x=tID,y=diffID,color=factor(cond))) + 
+  geom_smooth(method="lm")
+
+ggplot(dCRT10,aes(x=M,y=diffID,color=factor(E))) + 
+  geom_smooth(method="lm")
+
+ggplot(dCRT10,aes(x=tID,y=diffID,color=factor(E))) + 
+  geom_smooth(method="lm") +
+  facet_grid(~M)
+
+ggplot(dCRT10,aes(x=tID,y=rtID,color=factor(M))) + 
+  geom_point(alpha=.6) +
+  geom_smooth(method="lm")
+```
+
+* Main effects: Narrower ideological networks for moral and emotional content.
+* Interaction? Emotional tweets increase liberal clustering when they're not moral, otherwise increases conservative clustering when it is moral. 
+
+***
+
+```{r}
+ggplot(dCRT10,aes(x=diffID,y=RTperDay.Tr,color=factor(cond))) + 
+  geom_smooth(method="lm")
+ggplot(dCRT10,aes(x=tID,y=diffID,color=factor(cond))) + 
+  geom_smooth(method="lm")
+
+ggplot(dCRT10,aes(x=M,y=diffID,color=factor(E))) + 
+  geom_smooth(method="lm")
+
+ggplot(dCRT10,aes(x=tID,y=diffID,color=factor(E))) + 
+  geom_smooth(method="lm") +
+  facet_grid(~M)
+
+ggplot(dCRT10,aes(x=tID,y=rtID,color=factor(M))) + 
+  geom_point(alpha=.6) +
+  geom_smooth(method="lm")
+```
+
+* Main effects: Narrower ideological networks for moral and emotional content.
+* Interaction? Emotional tweets increase liberal clustering when they're not moral, otherwise increases conservative clustering when it is moral. 
+
+***
+
+#Ideology plots 
+
+```{r, echo=FALSE}
+# # create heatmap
+# ggplot(ideoHeatMap(dAll %>% filter(topic=="G")), aes(x=y, y=x)) +
+#   geom_tile(aes(fill=prop), colour="white") +
+#   scale_fill_gradient(name="% of\ntweets", 
+#                       low = "white", high = "black", 
+#                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+#                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+#   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+#        title="Ideological Correlations in Gun Tweets") + 
+#   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+#   coord_equal()  +
+#   facet_wrap(~ cond)
+# 
+# # create heatmap
+# ggplot(ideoHeatMap(dAll %>% filter(topic=="M")), aes(x=y, y=x)) +
+#   geom_tile(aes(fill=prop), colour="white") +
+#   scale_fill_gradient(name="% of\ntweets", 
+#                       low = "white", high = "black", 
+#                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+#                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+#   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+#        title="Ideological Correlations in Marriage Tweets") + 
+#   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+#   coord_equal()  +
+#   facet_wrap(~ cond)
+# 
+# # create heatmap
+# ggplot(ideoHeatMap(dAll %>% filter(topic=="C")), aes(x=y, y=x)) +
+#   geom_tile(aes(fill=prop), colour="white") +
+#   scale_fill_gradient(name="% of\ntweets", 
+#                       low = "white", high = "black", 
+#                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+#                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+#   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+#        title="Ideological Correlations in Climate Tweets") + 
+#   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+#   coord_equal()  +
+#   facet_wrap(~ cond)
+# 
+# dAll %>% filter(topic=="C") %>% group_by(cond) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+#   mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+# 
+# # Incomplete data ---------------------------------------------------------
+# setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+# dGM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/gayMarriageMoral/","joinedRTs.csv"),header=T)) %>%      rename(tid=tID,rtid=rtID)
+# dGC <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/GC2013/","joinedRTs.csv"),header=T)) %>%                 rename(tid=tID,rtid=rtID)
+# 
+# 
+# # create heatmap
+# ggplot(ideoHeatMap(dGC %>% filter(M==1)), aes(x=y, y=x)) +
+#   geom_tile(aes(fill=prop), colour="white") +
+#   scale_fill_gradient(name="% of\ntweets", 
+#                       low = "white", high = "black", 
+#                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+#                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+#   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+#        title="Ideological Correlations in Gun Control 2013 Tweets") + 
+#   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+#   coord_equal()  +
+#   facet_grid(. ~ cond)
+# 
+# dGC %>% group_by(cond) %>% filter(M==1) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+#   mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+# 
+# # create heatmap
+# ggplot(ideoHeatMap(dGM %>% filter(M==1)), aes(x=y, y=x)) +
+#   geom_tile(aes(fill=prop), colour="white") +
+#   scale_fill_gradient(name="% of\ntweets", 
+#                       low = "white", high = "black", 
+#                       breaks=c(0, .0050, 0.010, 0.015, 0.02), limits=c(0, .021),
+#                       labels=c("0.0%", "0.5%", "1.0%", "1.5%", ">2%")) +
+#   labs(y="Estimated Ideology of Retweeter", x="Estimated Ideology of Author",
+#        title="Ideological Correlations in Gay Marriage Tweets") + 
+#   scale_y_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   scale_x_continuous(expand=c(0,0), breaks=(-2:2), limits=c(-3, 3)) +
+#   theme(panel.border=element_rect(fill=NA), panel.background = element_blank()) +
+#   coord_equal()  +
+#   facet_grid(. ~ cond)
+# 
+# dGM %>% group_by(cond) %>% filter(M==1) %>% summarise_each(funs(mean,sd),tid:rtid) %>% 
+#   mutate_each(funs(round(.,2)),tid_mean:rtid_sd)
+# 
+
+# old code
+# load in RT summary files
+# setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/")
+# dG <- tbl_df(read.csv(paste0(getwd(),"/","GunControl/Guns/split/filt/RT/","G_RT.csv"),header=T))
+# dM <- tbl_df(read.csv(paste0(getwd(),"/","GayMarriage/marriage/split/RT/","M_RT.csv"),header=T))
+# dC <- tbl_df(read.csv(paste0(getwd(),"/","ClimateChange/Combined/split/filt/append/RT/",
+#                              "C_RT.csv"),header=T))
+# dAll <- rbind(dG,dM,dC)
+```
+

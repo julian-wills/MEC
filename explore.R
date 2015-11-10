@@ -13,6 +13,122 @@ require(stringr) || {install.packages("stringr"); require(stringr)}
 require(scales) || {install.packages("scales"); require(scales)}
 
 
+# No topic (11.9) ---------------------------------------------------------
+# take out topical phrases (e.g. climage change)
+
+#TO DO
+#- recreate file w/ DVs (persistDays, RTperDay
+
+if (grepl("^C:/",getwd())) {
+  userDir <- "C:/Users/Julian/GDrive" #PC
+} else {
+  userDir <- "/Users/julian/GDrive" #Mac
+}
+
+setwd(paste0(userDir,"/1 Twitter Project/Julian/MEC"))
+source("MC_funcs.R")
+
+# processing new files
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic/split"))
+fs3 <- list.files(getwd(),".csv",full.names = T) 
+removeWord(fs3,"storm") #remove storm
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic/split/filt/"))
+fs3 <- list.files(getwd(),".csv",full.names = T) 
+convertRetweet(fs3,w=T,lastTime=T) #uncomment to write .csv
+removeDupe(fs3)
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic/split/filt/NoDupe/"))
+convertRetweet(fs3,w=T,lastTime=T) #uncomment to write .csv
+writeSummaryTweets(fs3,twFile=T,sumFile=T,dir=T) #uncomment to write .csv
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dCAll <- tbl_df(read.csv("allTweets.csv",header=T))
+dCRT <- tbl_df(read.csv("corpRTs.csv",header=T))
+dCjoin <- tbl_df(read.csv("joinedRTs.csv",header=T))
+dCRT.count <- tbl_df(read.csv("allRTSummary.csv",header=T))
+dAll <- dCAll #so that code below works
+
+#--- copy and pasted from earlier version
+# isolate tweets that get retweeted at least 10 times
+dRT10  <- dAll %>% group_by(retweeted_status.id_str) %>% top_n(10,timestamp) %>% 
+  summarise(count=n()) %>% filter(count==10) %>% left_join(dAll)
+
+# create dataframe for leftovers 
+dRT9  <- dAll %>% group_by(retweeted_status.id_str) %>% top_n(10,timestamp) %>% 
+  summarise(count=n()) %>% filter(count<10)
+
+# create dataframe of first 10 RTs for tweets that have been retweeted at least 10 times. 
+# probably some redundancy here... but it's late
+dRT10.1 <- dAll %>% group_by(retweeted_status.id_str) %>% do(head(., n=10)) %>% 
+  filter(!retweeted_status.id_str %in% dRT9$retweeted_status.id_str)
+
+# grab the timestamp of the 10th retweet
+dRT10 <- dRT10.1 %>% do(tail(.,n=1)) %>% select(retweeted_status.id_str,time10=timestamp) 
+
+# compute summary statistics for first 10 retweets
+dRT10 <- dRT10 %>%  
+  left_join(dRT10.1 %>% summarise(meanIdeo=mean(ideology_estimate),sdIdeo=sd(ideology_estimate),
+                                  rangeIdeo=abs(max(ideology_estimate)-min(ideology_estimate)))) %>% 
+  # join w/ original tweets, compute timespan (hours)
+  left_join(dAll %>% filter(orig==1) %>% 
+              select(origIdeo=ideology_estimate,id_str,time1=timestamp,topic,cond),
+            by=c("retweeted_status.id_str"="id_str")) %>% 
+  mutate(speedHrs=as.numeric(as.POSIXct(time10)-as.POSIXct(time1),units="hours")) %>% 
+  select(RTid=retweeted_status.id_str,speedHrs,origIdeo,meanIdeo:rangeIdeo,topic,cond,time1,time10) 
+
+# load in persist tweets
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dPersist <- tbl_df(read.csv("allRTSummary.csv",header=T,sep=",")) %>% 
+  mutate(origDay=as.POSIXct(origTime),lastDay = as.POSIXct(lastTime),
+         persist=as.numeric(lastDay-origDay,units="days")) %>% 
+  select(RTid=retweeted_status.id_str,persist,count:text)
+
+# merge w/ persist and rename variables
+dRT10.2 <- dRT10 %>% left_join(dPersist,"RTid") %>% 
+  select(RTid,count,speedHrs,persistDays=persist,ID.0=origIdeo,meanID.10=meanIdeo,sdID.10=sdIdeo,
+         rangeID.10=rangeIdeo,meanID=rtid,sdID=targetIDsd,cond,topic,text)
+
+# summary statistics for each condition
+dRT10.2 %>% group_by(cond) %>% summarise_each(funs(mean),count:sdID) %>% 
+  mutate(diffID.10=abs(ID.0-meanID.10),diffID=abs(ID.0-meanID)) %>% 
+  mutate_each(funs(round(.,2)),count:diffID) %>% na.omit()
+
+# constraining to top 10% in each condition
+dRT10.2 %>% ungroup() %>% arrange(desc(count)) %>% group_by(cond) %>% 
+  filter(cume_dist(desc(count)) < 0.1) %>% summarise_each(funs(mean),count:sdID) %>% 
+  mutate(diffID.10=abs(ID.0-meanID.10),diffID=abs(ID.0-meanID)) %>% 
+  mutate_each(funs(round(.,2)),count:diffID)
+
+# load in retweets per day file
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
+  filter(!is.na(retweeted_status.id_str))
+dRT.Day <- count(dAll  %>% filter(topic=="C"), cond, topic, rtid=retweeted_status.id_str,day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01")) %>% summarise(RTperDay=mean(n)) %>% 
+  ungroup() %>% select(RTid=rtid,RTperDay)
+dRT10.3 <- dRT10.2 %>% left_join(dRT.Day) %>% select(RTid:count,RTperDay,speedHrs:text) %>% 
+  ungroup() %>% arrange(desc(count))
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+# write.csv(dRT10.3,"climateRetweetSpeed.csv",row.names = F)
+dCRT10 <- dRT10.3 %>% 
+  filter(!is.na(cond)) %>% 
+  rename(tID=ID.0,rtID=meanID,diffID=sdID) %>% mutate(ex.tID=abs(tID),ex.rtID=abs(rtID)) %>% 
+  mutate(M=ifelse(cond=="ME"|cond=="MNE",1,-1),E=ifelse(cond=="ME"|cond=="NME",1,-1)) %>% 
+  mutate(diffID=sqrt(diffID),RTperDay.Tr=sqrt(log(RTperDay+1)),
+         persistDays.Tr=log(log(persistDays+1)),
+         speedHrs.Tr=log(1/speedHrs))
+
+save(dCAll,file="climateAll.RData")
+save(dCRT,file="climateRT.RData")
+save(dCjoin,file="climate_join.RData")
+save(dCRT.count,file="climateRT_cnt.RData")
+save(dCRT10,file="climateRT10_dvs.RData")
+
+
+
+
+
 # Ideology distributions for each topic [2x2x3] ---------------------------
 setwd("C:/Users/Julian/GDrive/1 Twitter Project/")
 
@@ -1196,9 +1312,30 @@ for (c in dCRT %>% distinct(cond) %$% cond) {
 
 
 
-dCRT %>% group_by(cond) %>% 
-  summarise(ncRT=)
-  
+# Checking DVs (11.8) -----------------------------------------------------
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/allTweets"))
+load("climate/climateRT_dvs.RData")
+
+pairPlot(dCRTsum %>% select(speedHrs.Tr,E,M,sdID.10))
+
+# emotion attenuates the relationship between virality speed and ideological diversity
+ggplot(dCRTsum,aes(x=sdID.10,y=speedHrs.Tr,color=factor(E))) +
+  geom_point() +
+  geom_smooth(method="lm") 
+
+# Moral/Emotional interaction? Moral language boosts 
+# the relationship between virality speed and ideological diversity, unless it is also emotional
+ggplot(dCRTsum,aes(x=sdID.10,y=speedHrs.Tr,color=factor(M))) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  facet_grid(~E)
+
+dCRTsum
+
+
+lm()
+
 ####### Ideology distributions for each topic
 
 # Old ideology histograms -------------------------------------------------

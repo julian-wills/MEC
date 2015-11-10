@@ -10,6 +10,8 @@ require(magrittr) || {install.packages("magrittr"); require(magrittr)}
 require(dplyr) || {install.packages("dplyr"); require(dplyr)}
 require(readr) || {install.packages("readr"); require(readr)}
 require(tictoc) || {install.packages("tictoc"); require(tictoc)}
+require(lubridate) || {install.packages("lubridate"); require(lubridate)}
+
 
 # create function that moves tweets from dataset to another (e.g. nonmoral to moral)
 # make sure your working directory contains 4 .csv files
@@ -18,7 +20,9 @@ removeWord <- function(fs,s) { #removes list of words from all files
     df <- tbl_df(read.csv(f,header=T,sep=",")) 
     df <- df %>% filter(!grepl(paste(s,collapse="|"),tolower(text)))
     dir.create(file.path(getwd(),"filt"),showWarnings = F)
-    write.csv(df,file.path("filt",f),row.names = F)
+    fileName=strsplit(f,"/") %>% extract2(length(.)) %>% extract(length(.))
+    filePath=strsplit(f,"/") %>% extract2(length(.)) %>% extract(-length(.)) %>% paste(collapse = "/")
+    write.csv(df,paste0(filePath,"/filt/",fileName),row.names = F)
     print("saved filtered .csv")
   }
   write(s, file.path("filt","removedWords.txt"), sep = "\n")
