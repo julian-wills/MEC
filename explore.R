@@ -13,11 +13,8 @@ require(stringr) || {install.packages("stringr"); require(stringr)}
 require(scales) || {install.packages("scales"); require(scales)}
 
 
-# No topic (11.9) ---------------------------------------------------------
-# take out topical phrases (e.g. climage change)
-
 #TO DO
-#- recreate file w/ DVs (persistDays, RTperDay
+#- Normalize RT per day
 
 if (grepl("^C:/",getwd())) {
   userDir <- "C:/Users/Julian/GDrive" #PC
@@ -27,6 +24,76 @@ if (grepl("^C:/",getwd())) {
 
 setwd(paste0(userDir,"/1 Twitter Project/Julian/MEC"))
 source("MC_funcs.R")
+source("C:/Users/Julian/GDrive/PGGfMRI/Behav/Scripts/helpFunc.r")
+
+# Analyze no topic (11.12) ------------------------------------------------
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+load("climateRT10_dvs.RData") #top retweet data
+load("climateRT_cnt.RData")
+
+# add RT per day variable to ALL tweets -- not just ones retweeted at least 10 times
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
+dAll <- tbl_df(read.csv("corpRTs.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(timestamp),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
+  filter(!is.na(retweeted_status.id_str))
+dRT.Day <- count(dAll  %>% filter(topic=="C"), cond, topic, rtid=retweeted_status.id_str,day=day) %>% 
+  mutate(day=as.Date(day-1, origin = "2015-01-01")) %>% summarise(RTperDay=round(mean(n))) %>% 
+  ungroup() %>% select(RTid=rtid,RTperDay)
+
+dCRT.count %<>% left_join(dRT.Day,by=c("retweeted_status.id_str"="RTid"))
+
+dCRT.count <- dCRT.count %>% mutate(diffID=abs(tid-rtid),RTperDay.Tr=sqrt(log(log(RTperDay+1))+1))
+save(dCRT.count,file="climateRT_cnt.RData")
+
+dCRT.countFilt <- dCRT.count %>% filter(count>1)
+hist(dCRT.count$RTperDay.Tr)
+pairPlot(dCRT.count %>% select(tid,rtid,RTperDay,RTperDay.Tr,M,E))
+
+topicWords=c("climate change","climate policy","climate science","climatechange")
+
+require(quanteda)
+dCRT.cnt.topic <- dCRT.count %>% 
+  filter(!grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
+dCRT.cnt.noTopic <- dCRT.count %>% 
+  filter(grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
+
+
+
+####
+
+pairPlot(dCRT10 %>% select(M,E,RTperDay.Tr,persistDays.Tr,speedHrs.Tr,diffID))
+
+# looks like the virality doesn't change between conditions. If anything, negative effect of emotion
+dCRT10 %>% group_by(cond) %>% summarise(N=n(),mean=mean(RTperDay.Tr),RTperDay=mean(RTperDay),count=mean(count))
+dCRT.count %>% group_by(cond) %>% summarise(n(),mean(RTperDay),mean(RTperDay.Tr),mean(count))
+ggplot(dCRT.count, aes(x=RTperDay.Tr,y=..density..)) +
+  geom_density(alpha=.5,fill="black") +
+  facet_wrap("cond",nrow = 2)
+
+dCRT.countNew <- dCRT.count
+
+# add RT per day variable to ALL tweets -- not just ones retweeted at least 10 times
+setwd("C:/Users/Julian/GDrive/1 Twitter Project/pythonScripts/allTweets/climate/")
+load("climateRT_cnt.RData")
+dRT.Day <- tbl_df(read.csv("climateRetweetsByID.csv",header=T,sep=",")) %>% 
+  mutate(day=yday(day),dayDate = as.Date(day, origin = "2015-01-01")) %>% 
+  filter(!is.na(rtid)) %>% group_by(cond,rtid) %>% summarise(RTperDay=round(mean(n))) %>% 
+  mutate(M=ifelse(cond=="ME"|cond=="MNE",1,-1),E=ifelse(cond=="ME"|cond=="NME",1,-1)) %>% 
+  ungroup() %>% select(-cond)
+  
+dCRT.count <- dCRT.count %>% left_join(dRT.Day,by=c("retweeted_status.id_str"="rtid"))
+dCRT.countOld <- dCRT.count
+save(dCRT.count,file="climateRT_cnt.RData")
+
+# Doesn't appear like this pattern occurred in the old dataset either...
+dCRT.countOld %>% group_by(cond) %>% summarise(n(),mean(RTperDay),mean(count))
+dCRT.countNew %>% group_by(cond) %>% summarise(n(),mean(RTperDay),mean(count))
+
+# No topic (11.9) ---------------------------------------------------------
+# take out topical phrases (e.g. climage change)
+
+
+
 
 # processing new files
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic/split"))
