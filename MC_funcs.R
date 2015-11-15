@@ -163,8 +163,8 @@ writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T,dir=F) {
     topic = s[[1]][1] #parse topic 
     cond = paste(s[[1]][2],s[[1]][3],sep="") #parse condition
     tmpTxt <- filter(df,id_str %in% retweeted_status.id_str)$text #stores texts of original tweets
-    tmpDate <- filter(df,id_str %in% retweeted_status.id_str) %>% arrange(id_str) %$% timestamp #stores timestamps 
-    tmpDate2 <- rep(NA, length(tmpDate))
+    tmpDate <- filter(df,id_str %in% retweeted_status.id_str) %>% select(id_str,timestamp)#stores timestamps 
+    tmpDate2 <- rep(NA, length(tmpDate)) 
     df %<>% mutate(topic=topic,cond=cond)
     d.allTweets <- rbind(d.allTweets,df)
     if (rtFile==T) {
@@ -188,18 +188,16 @@ writeSummaryTweets<- function(fs,twFile=T,rtFile=T,joinFile=T,sumFile=T,dir=F) {
         tmpDate2 <- filter(dfCorT,retweeted_status.id_str %in% id_str)  %>% 
           # mutate(authorID = tmpAuth) %>% 
           group_by(retweeted_status.id_str) %>% arrange(retweeted_status.id_str) %>% 
-          do(tail(., n=1)) %$% timestamp
+          do(tail(., n=1)) %>% select(retweeted_status.id_str,lastTime=timestamp)
         dfRTSum <- dfCorT %>% group_by(retweeted_status.id_str) %>% 
-          summarise(count = n(),rtid = mean(ideology_estimate), targetIDsd=sd(ideology_estimate)) %>% 
-          arrange(desc(count))  %>% filter(!is.na(retweeted_status.id_str)) %>% 
-          mutate(tid = filter(dfCorT,id_str %in% retweeted_status.id_str)$ideology_estimate,
-                 text = tmpTxt, #returns text of original tweet
-                 # authID = tmpAuth, #user ID of original tweeter
-                 origTime = tmpDate,
-                 lastTime = tmpDate2,
-                 cond=cond,topic=topic,
-                 M=ifelse(cond=="ME"|cond=="MNE",1,-1),
-                 E=ifelse(cond=="ME"|cond=="NME",1,-1)) 
+          summarise(count = n(),rtID.M = mean(ideology_estimate), targetIDsd=sd(ideology_estimate)) %>% 
+          arrange(desc(count))  %>% filter(!is.na(retweeted_status.id_str)) %>%
+          left_join(df %>% select(id_str,tID=ideology_estimate,origTime=timestamp,text),
+                              by=c("retweeted_status.id_str"="id_str")) %>% 
+          left_join(tmpDate2) %>% 
+          mutate(cond=cond,topic=topic,
+                  M=ifelse(cond=="ME"|cond=="MNE",1,-1),
+                  E=ifelse(cond=="ME"|cond=="NME",1,-1))                
         d.retweetSum <- rbind(d.retweetSum,dfRTSum)
         print(paste("finished processing file",f))
       }

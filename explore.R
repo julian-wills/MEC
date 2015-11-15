@@ -11,7 +11,8 @@ require(readxl) || {install.packages("readxl"); require(readxl)}
 require(tidyr) || {install.packages("tidyr"); require(tidyr)}
 require(stringr) || {install.packages("stringr"); require(stringr)}
 require(scales) || {install.packages("scales"); require(scales)}
-
+require(streamR) || {install.packages("streamR"); require(streamR)}
+# require(purrr) || {install.packages("purrr"); require(purrr)}
 
 #TO DO
 #- Normalize RT per day
@@ -25,11 +26,126 @@ if (grepl("^C:/",getwd())) {
 setwd(paste0(userDir,"/1 Twitter Project/Julian/MEC"))
 source("MC_funcs.R")
 source("C:/Users/Julian/GDrive/PGGfMRI/Behav/Scripts/helpFunc.r")
+load("climateAll.RData")
+
+# continuous (11.13) ------------------------------------------------------
+
+setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/continuous"))
+dCont <- tbl_df(read.csv("C_cont.csv",header=T,sep=",")) %>% distinct(id_str) %>% select(-text)
+
+dCont3 <- head(dCont)
+
+dCont2 <- dCRT.count %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
+
+
+dCont2 <- dCRT.count %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
+
+dCRT.count %>% filter(retweeted_status.id_str==609864493577936896) %>% select(text)
+
+pairPlot(dCont2 %>% select(M,E,mCount:nRatio))
+
+dCont2 %>% filter(M==-1,mCount>0) %>% View()
+
+
+noisyWords = c("t.co","http","https","rt","u","009f")
+
+# what are conservatives tweeting about?
+dWordR <- dCAll %>% filter(ideology_estimate >0)
+tweetCorpus <- corpus(dWordR$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c(noisyWords,stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="red")
+
+
+# what are liberals tweeting about?
+dWordL <- dCAll %>% filter(ideology_estimate <0)
+tweetCorpus <- corpus(dWordL$text, notes="Created as part of a demo.") #no news is good news
+tweetDfm <- dfm(tweetCorpus, ignoredFeatures = c(noisyWords,stopwords("english")))
+plot(tweetDfm, random.order=F,random.color = F, max.words=80, rot.per = .1, colors="blue")
+
+comparison.cloud(tweetDfm,max.words=40,random.order=FALSE)
+
+term.matrix <- TermDocumentMatrix(tweetCorpus)
+
+require(wordcloud)
+
+# purrr (11.13) ------------------------------------------------------------
+require(purrr)
+require(MASS)
+select <- dplyr::select
+
+dCRT.count %<>% mutate(ex.tid=abs(tID),ex.rtid=abs(rtID.M)) #extremism (absolute value)
+dCRT.count %<>% mutate(party=ifelse((tID+rtID.M)/2>0,1,-1)) #if avg. Ideo > 0, then Repub (1)
+
+summary(m1 <- glm.nb(count ~ M + E, data = dCRT.count))
+m2 <- update(m1, . ~ . + M*E)
+m3 <- update(m2, . ~ . + targetIDsd)
+m4 <- update(m3, . ~ . + targetIDsd*M)
+m5 <- update(m4, . ~ . + targetIDsd*E)
+m6 <- update(m5, . ~ . + targetIDsd*M*E)
+anova(m1,m2,m3,m6)
+
+# best model: moral tweets more viral, emotional less. Moral tweets especially viral when nonemotional. 
+# viral tweets are more politically diverse, but less so when they are moral. 
+# interaction intensified when tweets are moral 
+summary(m6)
+
+summary(m1 <- glm.nb(count ~ targetIDsd+ex.rtid, data = dCRT.count))
+m2 <- update(m1, . ~ . + targetIDsd*ex.rtid)
+m3 <- update(m2, . ~ . + M*E)
+m4 <- update(m3, . ~ . + targetIDsd*M + ex.rtid*M + targetIDsd:ex.rtid:M + targetIDsd:ex.rtid:M:E)
+m5 <- update(m4, . ~ . + M*E*targetIDsd*ex.rtid)
+anova(m1,m2,m3,m4,m5)
+
+# crazy interactions (4-way). 
+summary(m4)
+
+# virality associated w/ centrist retweeters, especially for moral tweets
+# virality associated w/ political diversity for nonmoral content, but political similarity for moral,
+#  especially if emotional. Particular true for extremist retweeters.
+dCRT.count %>%
+  group_by(cond) %>% mutate(ex.tid=tid-mean(ex.tid),ex.rtid-mean(ex.rtid),targetIDsd-mean(targetIDsd)) %>% 
+  split(.$cond) %>%
+  map(~ glm.nb(count ~ ex.rtid*targetIDsd, data = .)) %>%
+  map(summary) %>%
+  map(coefficients)
+
+dCRT.count %<>% 
+  mutate(topB=ifelse(grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)),
+                     1,-1))
+
+# whether tweets explicitly mention climate change appears to have an important influence
+# viral tweets are more diverse when related to climate change
+summary(m1 <- glm.nb(count ~ M*E*topB, data = dCRT.count))
+summary(m1 <- glm.nb(count ~ M*E+targetIDsd*topB*ex.rtid, data = dCRT.count))
+summary(m1 <- glm.nb(count ~ M*E+targetIDsd*topB*ex.rtid*M, data = dCRT.count))
+
+
+# morality only predicts viral tweets unrelated to climate change
+# viral retweets are more centrist when related to climate change 
+# virality driven by political similarity when related to climate change. 
+#  especially for more extremist retweeters
+# viral weather tweets more driven by extremists if moral content
+dCRT.count %>%
+  group_by(topB) %>% mutate(ex.tid=ex.tid-mean(ex.tid),ex.rtid-mean(ex.rtid),targetIDsd-mean(targetIDsd)) %>% 
+  split(.$topB) %>%
+  map(~ glm.nb(count ~ M*E + targetIDsd*M*ex.rtid, data = .)) %>%
+#   map(~ glm.nb(count ~ targetIDsd + ex.rtid + M + E + targetIDsd:ex.rtid + M:E +
+#                  targetIDsd:M + ex.rtid:M + targetIDsd:ex.rtid:M + targetIDsd:ex.rtid:M:E, data = .)) %>%
+  map(summary) %>%
+  map(coefficients)
+
+# virality associated w/ more extreme retweeters and political similarity when related to climate change
+# centrist/similarity effect on virality is intensified for climate change
+dCRT.count %>%
+  mutate(ex.tid=tid-mean(ex.tid),ex.rtid-mean(ex.rtid),targetIDsd-mean(targetIDsd)) %>% 
+  glm.nb(count ~ M*topB*ex.rtid*targetIDsd, data = .) %>% summary()
+  
 
 # Analyze no topic (11.12) ------------------------------------------------
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
 load("climateRT10_dvs.RData") #top retweet data
 load("climateRT_cnt.RData")
+tbl_df(read.csv("c_Tweets.csv",header=T,sep=","))
 
 # add RT per day variable to ALL tweets -- not just ones retweeted at least 10 times
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
@@ -57,7 +173,9 @@ dCRT.cnt.topic <- dCRT.count %>%
 dCRT.cnt.noTopic <- dCRT.count %>% 
   filter(grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
 
+dCRT.count %>% head() %$% toLower(text) %>% tokenize() %>% str()
 
+?applyDictionary
 
 ####
 
@@ -104,6 +222,7 @@ fs3 <- list.files(getwd(),".csv",full.names = T)
 convertRetweet(fs3,w=T,lastTime=T) #uncomment to write .csv
 removeDupe(fs3)
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic/split/filt/NoDupe/"))
+fs3 <- list.files(getwd(),".csv",full.names = T) 
 convertRetweet(fs3,w=T,lastTime=T) #uncomment to write .csv
 writeSummaryTweets(fs3,twFile=T,sumFile=T,dir=T) #uncomment to write .csv
 
@@ -543,23 +662,121 @@ wordcloud(words=names(wordFreq), freq=wordFreq, scale=c(5,.1), min.freq=5, max.w
 
 # Scraping ----------------------------------------------------------------
 
-# load("~/../GDrive/1 Twitter Project/Julian/SMaPPtools/my_oauth")
-# setwd("~/../GDrive/1 Twitter Project/Julian/SMaPPtools")
-# 
-# # How can I collect all tweets that mention certain keywords?
-# filterStream(file.name="test_tweets.json", track=c("obama", "romney"), oauth=my_oauth,
-#              tweets=500)
-# 
-# # How can I then see the tweets I collected?
-# tweets <- parseTweets("obama_tweets.json") #names(tweets)
-# 
-# # a few quick analyses of the data
-# table(tweets$lang) ## distribution by language
-# sum(!is.na(tweets$lat)) ## how many are geolocated
-# summary(tweets$retweet_count) ## how many RTs they have
-# tweets$text[which.max(tweets$retweet_count)] ## most RTed tweet
+load("~/../GDrive/1 Twitter Project/Julian/SMaPPtools/my_oauth")
+setwd("~/../GDrive/1 Twitter Project/Julian/SMaPPtools")
+
+# How can I collect all tweets that mention certain keywords?
+filterStream(file.name="paris_tweets.json", track=c("paris", "parisattacks"), oauth=my_oauth,
+             tweets=10000)
+
+setwd("~/../GDrive/1 Twitter Project/Julian/paris_tweets2.json/")
 
 
+# How can I then see the tweets I collected?
+tweets <- parseTweets("paris_tweets2.json") #names(tweets)
+
+# a few quick analyses of the data
+table(tweets$lang) ## distribution by language
+sum(!is.na(tweets$lat)) ## how many are geolocated
+summary(tweets$retweet_count) ## how many RTs they have
+tweets$text[which.max(tweets$retweet_count)] ## most RTed tweet
+
+
+dTweet <- tbl_df(tweets)
+
+
+dTweet %$% verified %>% sum #56 verified accounts
+dTweet %<>% filter(lang=="en") #English tweets only
+dTweet %>% filter(verified==1)  #45 English verified
+dTweet %>% arrange(desc(favourites_count)) %>% head()  #favorites count => prosocial
+dTweet %>% arrange(desc(followers_count)) %>% head() #2 CNN accounts, all media most followed
+dTweet %>% arrange(desc(friends_count)) %>% head()  #hyper conservative w/ most friends
+dTweet %>% arrange(desc(retweet_count)) %>% head()  #hyper conservative w/ most friends
+
+dTweet %>% filter(!grepl("^RT ",text)) #2500 tweets
+dRT <- dTweet %>% filter(grepl("^RT ",text)) #6,000 are retweets
+
+Aff <- readLines('C:/Users/Julian/GDrive/Misc/RTextAnalysis/ITAUR/1_demo/Affect.txt')
+Mor <- readLines('C:/Users/Julian/GDrive/Misc/RTextAnalysis/ITAUR/1_demo/MoralWords.txt')
+
+MCDics <- dictionary(list(Affect = Aff,Moral=Mor)) #just wrap
+TwCorp <- corpus(dTweet$text)
+summary(TwCorp)
+str(TwCorp)
+dictDfm <- dfm(TwCorp, dictionary=MCDics)
+summary(dictDfm)
+
+dictDfm %>% head()
+str(dictDfm)
+dictDfm@Dimnames$features[1] %>% head()
+dictDfm %>% head() %>% View()
+Dfm2 <- tbl_df(dictDfm)
+plot(dictDfm, min.freq = 6, random.order = FALSE)
+
+noisyWords = c("t.co","http","https","rt","u","009f")
+TwDfm <- corpus(dTweet$text) %>% 
+  dfm(ignoredFeatures = c(noisyWords,stopwords("english"))) %>% 
+  plot(random.order=F,random.color = F, max.words=100, rot.per = .1, colors="black")
+
+# moral words that are also emotional
+corpus(dTweet$text) %>% 
+  dfm(ignoredFeatures = c(noisyWords,stopwords("english")),
+      keptFeatures = c(Aff,Mor)) %>% 
+  plot(random.order=F,random.color = F, max.words=100, rot.per = .1, colors="black")
+
+# moral words that are not in emotion dictionary
+corpus(dTweet$text) %>% 
+  dfm(ignoredFeatures = c(noisyWords,Aff,stopwords("english")),
+      keptFeatures = Mor) %>% 
+  plot(random.order=F,random.color = F, max.words=100, rot.per = .1, colors="black")
+
+# emotional words that are not moral
+corpus(dTweet$text) %>% 
+  dfm(ignoredFeatures = c(noisyWords,Mor,stopwords("english")),
+      keptFeatures = Aff) %>% 
+  plot(random.order=F,random.color = F, max.words=100, rot.per = .1, colors="black")
+
+# non moral unemotional words
+corpus(dTweet$text) %>% 
+  dfm(ignoredFeatures = c(noisyWords,Aff,Mor,stopwords("english"))) %>% 
+  plot(random.order=F,random.color = F, max.words=100, rot.per = .1, colors="black")
+
+keptFeatures
+
+applyDictionary(TwDfm, MCDics, valuetype = "glob")
+
+topfeatures(TwDfm)
+kwic(TwCorp,"paris") %>% head()
+dictDfm@Dimnames %>% head()
+dictDfm@x %>% head()
+dictDfm %>% View()
+
+# if (require(topicmodels)) {
+#   myLDAfit20 <- LDA(convert(dictDfm, to = "topicmodels"), k = 20)
+#   get_terms(myLDAfit20, 5)
+#   topics(myLDAfit20, 3)
+# }
+
+
+hist(dictDfm@x[1:8461])
+hist(dictDfm@x[8467:16922])
+
+dT <- NULL;
+dT$text <- dictDfm@Dimnames$docs 
+dT$AffectN <- dictDfm@x[1:8461] 
+dT$MoraltN <- dictDfm@x[8462:16922]
+
+dT <- tbl_df(dT %>% as.data.frame())
+
+dT %>% group_by(AffectN,MoraltN) %>% summarize(n())
+
+ggplot(dT,aes(x=AffectN,y=MoraltN)) +
+  geom_jitter() + 
+  geom_smooth(method="loess")
+
+
+
+# dTweet %>% select(text,re)
 # Retweet analysis --------------------------------------------------------
 require(magrittr)
 
