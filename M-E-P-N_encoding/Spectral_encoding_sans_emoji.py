@@ -18,7 +18,7 @@ import csv
 import string
 
 indoc = open(inputfiledir, encoding = "utf-8")
-outdoc= csv.writer(open("no_emoji_out.csv", mode = "w", encoding = "utf-8")) #change filename "out.csv" to something else if you want
+outdoc= csv.writer(open("no_emoji_out.csv", mode = "w", encoding = "utf-8"), lineterminator ="\n") #change filename "out.csv" to something else if you want
 
 wordlists  = (open(morallistdir, encoding = "utf-8").read().replace("*", "").splitlines(),open(emolistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(poslistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(neglistdir, encoding = "utf-8").read().replace("*", "").splitlines())
 #^update this if you add a list
@@ -41,7 +41,7 @@ def findInTweet(line, wordlists):
             tup = iterForWord(content, word)
             wordcounts += tup[0]
             wordslen += tup[1]
-        wordratios = wordslen / len(content)
+        wordratios = wordslen / len(content.replace(" ",""))
         line.append(wordcounts)
         line.append(wordratios)
     outdoc.writerow(line) #preserves all other data from source doc while appending our values :)
