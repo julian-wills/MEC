@@ -1,3 +1,8 @@
+
+
+##CURRENTLY NONFUNCTIONAL. THIS MESSAGE WILL BE DELETED WHEN FUNCTIONALITY IS RESTORED
+
+
 #Dict-based spectral encoding of emotionality, morality, positivity, and negativity!
 #Dominic Burkart
 #for MEC project current version: 15 November 2015 (version 2)
@@ -17,58 +22,72 @@ emojilistdir = "/Users/dominicburkart/Documents/MEC/M-E-P-N_encoding/MEC_wordlis
 
 import csv
 import string
+import emoji
 
 indoc = open(inputfiledir, encoding = "utf-8")
 outdoc= csv.writer(open("out.csv", mode = "w", encoding = "utf-8")) #change filename "out.csv" to something else if you want
 
-wordlists  = (open(morallistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(emolistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(poslistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(neglistdir, encoding = "utf-8").read().replace("*", "").splitlines(),open(emojilistdir, encoding = "utf-8").read().splitlines())
+wordlists  = (emoji.demojize(open(morallistdir, encoding = "utf-8").read()).replace("*", "").splitlines(), emoji.demojize(open(emolistdir, encoding = "utf-8").read()).replace("*", "").splitlines(), emoji.demojize(open(poslistdir, encoding = "utf-8").read()).replace("*", "").splitlines(), emoji.demojize(open(neglistdir, encoding = "utf-8").read()).replace("*", "").splitlines(),emoji.demojize(open(emojilistdir, encoding = "utf-8").read()).splitlines())
 #^update this if you add a list
 # opens each file as a list of values
 # Storing wordlists as strings in the heap while the program runs is ideal imo.
 # todo: next implementation ask for listdirs in a set or list and make this a list + use a while loop to populate it (easier for updating code)
 
-def findInTweet(line, wordlists): #called by the main program below for each line.
-    wordcounts = [0,0,0,0]
-    wordratios = [0,0,0,0]
-    tweetlength = len(line[tw_content_indx]) #so we can iterate through the list without creating a new object
-    for current in range(0, len(wordlists)-1): #doesn't go through emojilist
-        curIndex = 0 #we have to iterate through each tweet len(wordlists)-1 number of times with this implementation.
-        wordslen = 0 #for ratios
-        for word in wordlists[current]:
+def findInTweet(line, wordlists):
+    content = line[tw_content_indx]
+    for x in string.punctuation:
+        content = content.replace(x," ")
+    for current in wordlists[0:4]: #doesn't go through emojilist
+        wordcounts = [0]
+        wordratios = [0]
+        curIndex   = [0] 
+        wordslen   = [0] #for ratios
+        for word in current:
+            while curIndex[0] < len(content):
             #for words:
-            if ( curIndex < tweetlength and line[tw_content_indx].find(" "+word, curIndex)> -1):
-                #^ Space added to simulate tokenization: the .find() for the tweet body now functions similarly to the .startswith() for a list of words from the tweet body
-                oldi = curIndex #for getting wordlength
-                curIndex = endOfWord(line[tw_content_indx], curIndex)
-                wordcounts[current] += 1
-                wordslen += curIndex-oldi
-            #for emoji:
-            elif ( curIndex < tweetlength and line[tw_content_indx] in emojilistdir and line[tw_content_indx].find(word, curIndex) > -1):
-                curIndex += 1
-                wordcounts[current] += 1
-                wordslen += 1
-        wordratios[current] = wordslen / len(line[tw_content_indx])
-    line.extend(wordcounts) #adds our counts to the line!
-    line.extend(wordratios) #adds our ratios to the line!
+                #first word
+                if (curIndex[0] == 0 and content.find(word, curIndex[0])> -1):
+                    oldi = 0
+                    curIndex[0] = endOfWord(content, curIndex[0])
+                    wordcounts[0] += 1
+                    #print(wordcounts, "first word")
+                    wordslen[0] += curIndex[0]-oldi
+                #all other words:
+                elif (content.find(" "+word, curIndex[0]) > -1):
+                    #^ Space added to simulate tokenization: the .find() for the tweet body now functions similarly to the .startswith() for a list of words from the tweet body
+                    oldi = curIndex[0] #for getting wordlength
+                    curIndex[0] = endOfWord(content, curIndex[0])
+                    wordcounts[0] += 1
+                    #print(wordcounts, "other words")
+                    wordslen[0] += curIndex[0] - oldi
+                else:
+                    curIndex[0] = endOfWord(content, curIndex[0])
+                
+    
+        wordratios[0] = wordslen[0] / len(content)
+        line.append(wordcounts[0])
+        line.append(wordratios[0])
     outdoc.writerow(line) #preserves all other data from source doc while appending our values :)
 
-#returns index of the end of the word.
-def endOfWord(instring, curIndex): 
-    cur = len(instring)-1
-    for x in word_ends:
-        y = instring.find(x,curIndex)
-        if ( y != -1 and y < cur):
-            cur = y
-    return cur
-        
 
-#word_ends will be used to 
+#returns index of the next word for the cleaned tweet line from findInTweet
+def endOfWord(instring, curIndex):
+    cur = len(instring)
+    y = instring.find(" ",curIndex)
+    if(y>curIndex and y<cur):
+        cur = y
+    return cur
+
+for x in wordlists[4]:
+    for y in string.punctuation:
+        x.replace(y, "")
+        
 word_ends = list(string.punctuation)
 word_ends.append(" ")
 inheader = True 
 for line in csv.reader(indoc):
     if inheader: #to copy over header to the new doc + add the new columns :)
-        line.extend(["mCount","eCount","pCount","nCount","mRatio","eRatio","pRatio","nRatio"])
+        line.extend(["mCount","mRatio","eCount","eRatio","pCount","pRatio","nCount","nRatio"])
         print("populating output file, please wait.")
         outdoc.writerow(line)
         inheader = False
