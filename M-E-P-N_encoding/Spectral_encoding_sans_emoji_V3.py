@@ -16,11 +16,12 @@ neglistdir   = "/Users/dominicburkart/Documents/MEC/M-E-P-N_encoding/MEC_wordlis
 
 import csv
 import string
+import os
 
 indoc = open(inputfiledir, encoding = "utf-8")
 outdoc= csv.writer(open("no_emoji_out.csv", mode = "w", encoding = "utf-8"), lineterminator ="\n") #change filename "out.csv" to something else if you want
 
-wordlists  = (open(morallistdir, encoding = "utf-8").read().replace("*", "").splitlines(),open(emolistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(poslistdir, encoding = "utf-8").read().replace("*", "").splitlines(), open(neglistdir, encoding = "utf-8").read().replace("*", "").splitlines())
+wordlists  = (open(morallistdir, encoding = "utf-8").read().replace("*", "").replace(" ","").splitlines(),open(emolistdir, encoding = "utf-8").read().replace("*", "").replace(" ","").splitlines(), open(poslistdir, encoding = "utf-8").read().replace("*", "").replace(" ","").splitlines(), open(neglistdir, encoding = "utf-8").read().replace("*", "").replace(" ","").splitlines())
 #^update this if you add a list
 # opens each file as a list of values
 # Storing wordlists as strings in the heap while the program runs is ideal imo.
@@ -33,6 +34,7 @@ def findInTweet(line, wordlists):
     content = " "+content #fixes first word problem
     for x in string.punctuation:
         content = content.replace(x," ")
+    content = content.lower()
     for current in wordlists:
         wordcounts = 0
         wordratios = 0 
@@ -40,7 +42,7 @@ def findInTweet(line, wordlists):
         for word in current:
             tup = iterForWord(content, word)
             wordcounts += tup[0]
-            wordslen += tup[1]
+            wordslen += tup[1] -1 #deletes the last space
         wordratios = wordslen / len(content.replace(" ",""))
         line.append(wordcounts)
         line.append(wordratios)
@@ -59,10 +61,9 @@ def iterForWord(content, word): #fixes same word not counted twice problem
     inst_wordcounts = 0
     inst_wordslen = 0
     curIndex = 0
-    while curIndex < len(content): 
+    while curIndex < len(content):
     #for words:
         if (content.find(" "+word, curIndex) > -1):
-            #^ Space added to simulate tokenization: the .find() for the tweet body now functions similarly to the .startswith() for a list of words from the tweet body
             oldi = curIndex #for getting wordlength
             curIndex = endOfWord(content, curIndex)
             inst_wordcounts += 1

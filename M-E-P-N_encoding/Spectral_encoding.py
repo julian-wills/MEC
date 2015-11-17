@@ -33,6 +33,10 @@ wordlists  = (emoji.demojize(open(morallistdir, encoding = "utf-8").read()).repl
 # Storing wordlists as strings in the heap while the program runs is ideal imo.
 # todo: next implementation ask for listdirs in a set or list and make this a list + use a while loop to populate it (easier for updating code)
 
+for filename in os.listdir(os.getcwd()):
+    if filename.endswith(".txt"):
+        input_filenames.append(filename)
+
 def findInTweet(line, wordlists):
     content = line[tw_content_indx]
     for x in string.punctuation:
