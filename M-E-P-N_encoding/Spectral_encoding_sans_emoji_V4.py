@@ -4,7 +4,7 @@
 #assumes that words are separated by spaces to allow for tokenization
 
 #THINGS THAT HAVE TO BE FILLED IN TO MAKE THE PROGRAM WORK:
-inputfiledir = "/Users/dominicburkart/Downloads/tweet_in.csv"
+inputfiledir = "/Users/dominicburkart/Downloads/tweet_in_test.csv"
 tw_content_indx = 10 #index in the input csv that has the actual text of the tweet in each row (eg fourth value in a row of comma-separated values has an index of 3)
 morallistdir = "/Users/dominicburkart/Documents/MEC/M-E-P-N_encoding/MEC_wordlist_dictionaries/without_emoji/MoralWords.txt"
 emolistdir   = "/Users/dominicburkart/Documents/MEC/M-E-P-N_encoding/MEC_wordlist_dictionaries/without_emoji/Affect.txt"
@@ -53,11 +53,12 @@ inheader = True
 for line in csv.reader(indoc):
     if inheader: #to copy over header to the new doc + add the new columns :)
         line.extend(["mCount","eCount","pCount","nCount","mRatio","eRatio","pRatio","nRatio"])
-        print("populating output file, please wait.")
         outdoc.writerow(line)
+        print("populating output file, please wait.")
         inheader = False
     else: #to count words + ratios for each tweet and then right those values to out :)
-        findInTweet(line,wordlists) 
+        findInTweet(line,wordlists)
+print("\nencoding complete.")
     
 
         
