@@ -59,13 +59,39 @@ ggplot(dCAll,aes(x=ideology_estimate,y=..density..,fill=factor(topic2))) +
 # how does ideology/virality change between climate change and weather?
 
 
-
 dCRT.cnt.topic <- dCRT.count %>% 
-  filter(!grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
-dCRT.cnt.noTopic <- dCRT.count %>% 
   filter(grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
+dCRT.cnt.noTopic <- dCRT.count %>% 
+  filter(!grepl("climate change|#climate|#climatechange|global warming|#globalwarming",toLower(text)))
 
-dCRT.cnt.topic %>% 
+m1 <- glm.nb(count~M*E+tID+rtID.M,dCRT.cnt.topic) %>% summary
+summary(m1 <- glm.nb(count ~ M + E, data = dCRT.cnt.topic))
+m2 <- update(m1, . ~ . + M*E)
+m3 <- update(m2, . ~ . + targetIDsd)
+m4 <- update(m3, . ~ . + ex.rtid)
+m5 <- update(m4, . ~ . + ex.rtid*targetIDsd)
+m6 <- update(m5, . ~ . + targetIDsd*M)
+# m7 <- update(m6, . ~ . + ex.rtid*M)
+# m8 <- update(m7, . ~ . + targetIDsd*ex.rtid*E)
+anova(m1,m2,m3,m4,m5,m6,m7,m8)
+
+
+# viral tweets stem from less ideologically extreme (re)tweeters
+# viral tweets tend to attract ideologically similar retweeters, especially if moral content,
+#  and especially if retweeters are ideologically extreme
+glm.nb(count~M*E+ex.tid+ex.rtid*targetIDsd+targetIDsd*M,dCRT.cnt.topic) %>% summary
+
+glm.nb(count~M*E+ex.tid+ex.rtid*targetIDsd+targetIDsd*M,dCRT.cnt.topic) %>% summary
+
+# holds when mean centering within conditions
+dCRT.cnt.topic %>% group_by(cond) %>% 
+  mutate(ex.tid=ex.tid-mean(ex.tid),ex.rtid-mean(ex.rtid),targetIDsd-mean(targetIDsd)) %>% 
+  glm.nb(count ~ M*E+ex.tid+ex.rtid*targetIDsd+targetIDsd*M, data = .) %>% summary()
+
+glm.nb(count~M*E+ex.tid+targetIDsd*M,dCRT.cnt.topic) %>% summary
+
+
+dCRT.cnt.topic %>% select(text) %>% head(5)
 
 # add RT per day variable to ALL tweets -- not just ones retweeted at least 10 times
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
@@ -184,7 +210,6 @@ summary(m1 <- glm.nb(count ~ M*E+targetIDsd*topB*ex.rtid, data = dCRT.count))
 summary(m1 <- glm.nb(count ~ M*E+targetIDsd*topB*ex.rtid*M, data = dCRT.count))
 
 
-# morality only predicts viral tweets unrelated to climate change
 # viral retweets are more centrist when related to climate change 
 # virality driven by political similarity when related to climate change. 
 #  especially for more extremist retweeters
@@ -213,7 +238,10 @@ dCRT.countAll <- rbind(select(dCRT.count,retweeted_status.id_str,M,E,cond,text,c
 dCRT.countAll %<>% 
   mutate(topB=ifelse(grepl("climate change|#climate|#climatechange|global warming|#globalwarming",
                                            toLower(text)),1,-1))
-?merge
+
+
+dCRT.countAll %>% filter(topB==1) %>% select(head(text))
+dCRT.countAll %>% filter(topB==-1) %>% select(head(text))
 
 m1 <- glm.nb(count ~ M*E, data = dCRT.countAll)
 m1 <- glm.nb(count ~ M*E, data = dCRT.countAll %>% filter(topB==1))
@@ -231,17 +259,19 @@ dT <- within(dT, {
   UL <- exp(fit + 1.96 * se.fit)
 })
 
+# predict(m1, dT, type = "response", se.fit=TRUE)
+
 dT %<>% mutate(E=ifelse(E==1,"Emo","Nonemo"),M=ifelse(M==1,"Moral","Nonmoral"))
 ggplot(dT, aes(factor(E), count, color=factor(M))) +
   geom_point() +
   geom_errorbar(aes(ymin=LL,ymax=UL),width=.2) +
   labs(x = "Emotion Category", y = "Predicted Number of Retweets") +
-  ylim(0,1) +
+  ylim(0,1.5) +
   # ggtitle("Predicted Virality for All Tweets") 
   # ggtitle("Predicted Virality for Climate Change Tweets") 
   ggtitle("Predicted Virality for Climate / Weather Tweets") 
   
-m2 <- glm(count ~ M * E, family = "poisson", data = dCRT.count)
+m2 <- glm(count ~ M * E, family = "poisson", data = dCRT.countAll)
 pchisq(2 * (logLik(m1) - logLik(m2)), df = 1, lower.tail=FALSE)
 
 # No topic (11.9) ---------------------------------------------------------
