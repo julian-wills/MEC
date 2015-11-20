@@ -15,7 +15,8 @@ require(quanteda) || {install.packages("quanteda"); require(quanteda)}
 
 
 #TO DO
-#- Normalize RT per day
+#- ideological variability only measured for RTs w/ count > 1
+#- Normalize RT per day -- resolved
 
 if (grepl("^C:/",getwd())) {
   userDir <- "C:/Users/Julian/GDrive" #PC
@@ -26,6 +27,54 @@ if (grepl("^C:/",getwd())) {
 setwd(paste0(userDir,"/1 Twitter Project/Julian/MEC"))
 source("MC_funcs.R")
 source("C:/Users/Julian/GDrive/PGGfMRI/Behav/Scripts/helpFunc.r")
+
+
+
+# ideology -- climate only (11.19) ------------------------------------------------
+hist(dCRT.cnt.topic$tID)
+hist(dCRT.cnt.topic$rtID.M)
+hist(dCRT.cnt.topic$targetIDsd)
+
+dCRT.cnt.topic %<>% mutate(targetIDsd.Tr=sqrt(targetIDsd)) #square root transform
+hist(dCRT.cnt.topic$targetIDsd.Tr) #looks very normal
+
+# is ideologigcal variance predicted by moral/emotional content?
+
+# scatterplots/correlations
+pairPlot(dCRT.cnt.topic %>% select(targetIDsd.Tr,M,E,tID,ex.tid,rtID.M,ex.rtid) %>% na.omit())
+
+
+dCRT.cnt.topic %<>% mutate(diffID=abs(tID-rtID.M))
+
+dCRT.cnt.topic  %>% filter(count>1) %>% 
+  mutate(ex.tid=ex.tid-mean(ex.tid),ex.rtid-mean(ex.rtid),
+         tID=tID-mean(tID),rtID.M=rtID.M-mean(rtID.M)) %>% 
+  lm(targetIDsd.Tr ~ M*E+tID+rtID.M+ex.tid+ex.rtid, data = .) %>% summary()
+
+ggplot(dCRT.cnt.topic %>% filter(count>1),aes(x=factor(M),y=targetIDsd.Tr,color=factor(E))) +
+  # geom_point() + 
+  stat_summary(fun.y = mean, geom = "point") + 
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", mult = 1,width=.2) +
+  scale_color_discrete(breaks=c(1,-1), labels=c("Emotional", "Unemotional")) +
+  scale_x_discrete(breaks=c(1,-1), labels=c("Moral","Nonmoral")) +
+  ylab("Ideological Variance of Message \nRetweeters (Transformed Units)")
+
+dodge <- position_dodge(width=0.3)
+ggplot(dCRT.cnt.topic %>% filter(count>1),aes(x=factor(M),y=targetIDsd,color=factor(E))) +
+  stat_summary(fun.y = mean, geom = "point",position=dodge) + 
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar",
+               mult = 1,B=3000, position=dodge, width=.3) +
+  scale_color_discrete(breaks=c(1,-1), labels=c("Emo", "Non Emo")) +
+  scale_x_discrete(breaks=c(1,-1), labels=c("Moral","Nonmoral")) +
+  ylab("Ideological Variance \n of Message Retweeters")
+
+
+dCAll %>% filter(target)
+dCRT.count %>% filter(is.na(rt.ID))
+
+dCRT.count %>% summarise_each(funs(sum(is.na(.))),tID,rtID.M,targetIDsd) #10,000 without targetIDsd
+dCRT.count
+
 
 # Analyze no topic (11.12) ------------------------------------------------
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/noTopic"))
@@ -71,11 +120,17 @@ m3 <- update(m2, . ~ . + targetIDsd)
 m4 <- update(m3, . ~ . + ex.rtid)
 m5 <- update(m4, . ~ . + ex.rtid*targetIDsd)
 m6 <- update(m5, . ~ . + targetIDsd*M)
-# m7 <- update(m6, . ~ . + ex.rtid*M)
-# m8 <- update(m7, . ~ . + targetIDsd*ex.rtid*E)
-anova(m1,m2,m3,m4,m5,m6,m7,m8)
+anova(m1,m2,m3,m4,m5,m6)
 
+m1 <- glm.nb(count ~ M, data = dCRT.cnt.topic)
+# m2 <- update(m1, . ~ . - E)
+m3 <- update(m1, . ~ . + targetIDsd)
+m4 <- update(m3, . ~ . + targetIDsd*M)
+m5 <- update(m4, . ~ . + ex.rtid)
+m6 <- update(m5, . ~ . + ex.rtid*M)
+anova(m1,m3,m4,m5,m6)
 
+summary(m5) #viral tweets associated with more extreme retweeters and greater ideological variance
 # viral tweets stem from less ideologically extreme (re)tweeters
 # viral tweets tend to attract ideologically similar retweeters, especially if moral content,
 #  and especially if retweeters are ideologically extreme
@@ -381,21 +436,46 @@ save(dCRT10,file="climateRT10_dvs.RData")
 # continuous (11.13) ------------------------------------------------------
 
 setwd(paste0(userDir,"/1 Twitter Project/pythonScripts/ClimateChange/Combined/continuous"))
-dCont <- tbl_df(read.csv("C_cont.csv",header=T,sep=",")) %>% distinct(id_str) %>% select(-text)
+dCont <- tbl_df(read.csv("c_cont.csv",header=T,sep=",")) %>% distinct(id_str)
 
-dCont3 <- head(dCont)
+pairPlot(dCont %>% select(ideology_estimate,mCount:nRatio) %>% head(1000))
 
-dCont2 <- dCRT.count %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
+
+dCont2 <- dCRT.cnt.topic %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
+
+dCont3 <- dC.RT0 %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
 
 
 dCont2 <- dCRT.count %>% left_join(dCont,by=c("retweeted_status.id_str"="id_str"))
 
 dCRT.count %>% filter(retweeted_status.id_str==609864493577936896) %>% select(text)
 
-pairPlot(dCont2 %>% select(M,E,mCount:nRatio))
+pairPlot(dCont2 %>% filter(count>0) %>% select(M,E,mCount,eCount))
 
 dCont2 %>% filter(M==-1,mCount>0) %>% View()
 
+dCont2 %>% filter(E==-1,eCount>0) %>% View()
+dCont2 %>% filter(E==-1,eCount>0) %>% select(text.x) %>% head(5)
+
+dCont2 %>% filter(E==-1,eCount>0) %>% select(text.x,eCount) %>% View()
+dCont2 %>% filter(E==-1,eCount>0) %>% select(text.x) %>% head(5) %$% text.x
+
+# dCont2 %>% filter(E==-1,eCount>0) %>% select(text.x,E,eCount) %>% write.csv("emoValidate.csv")
+
+dCont2 %>% filter(E==1,eCount==0) %>% View()
+dCont2 %>% filter(M==1,mCount==0) %>% View()
+
+
+dCont2 %>% filter(M==1,mCount==0) %>% select(text.x,M,mCount) %>% head(50) %>% write.csv("moralValidateT2.csv")
+dCont2 %>% filter(E==1,eCount==0) %>% select(text.x,E,eCount) %>% head(50) %>% write.csv("emoValidateT2.csv")
+
+dCont3 %>% filter(E==1,eCount==0) %>% View()
+dCont3 %>% filter(M==1,mCount==0) %>% View()
+
+dCont3 %>% filter(M==1,mCount==0) %>% inner_join(dCont3 %>% filter(E==1,eCount==0),by="retweeted_status.id_str")
+
+dCont3 %>% filter(M==1,mCount==0) %>% select(text.x,M,mCount) %>% head(5)
+# political wordclouds --------------------------------------------------------------
 
 noisyWords = c("t.co","http","https","rt","u","009f")
 
