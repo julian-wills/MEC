@@ -29,6 +29,7 @@ def clean(instring, spaces = True): #removes punctuation and double spaces, repl
         for x in punctuation:
             instring = instring.replace(x, " ")
         instring.replace(" ","")
+    instring = instring.lower()
     return instring
 
 #gets dictionaries
