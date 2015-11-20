@@ -6,43 +6,51 @@
 #   given dictionary and the ratio of words in the tweet also in the dictionary/total #
 #   of words in the tweet.
 
-#for MEC project current version: 19 November 2015 (version 5)
+#for MEC project current version: 20 November 2015 (version 6)
 #assumes that words in tweet are separated by spaces/punctuation to allow for tokenization
 #no error checking for faulty input. 
 
+#get filepath for data + content index
 inputfiledir = input("data file directory: ")
 tw_content_indx = int(input("tweet text index in input file (usually 10): "))
+print("\n")
 
 #using standard modules
 import csv
 import os
 
 #code for cleaning up strings (in dictionaries and in tweets)
-punctuation = '''!"#$%&'()*+,-./:;<=>?[\]^_`{|}~'''#missing @ at the request of Julian Wills
+punctuation = '''!"#$%&'()*+,-./:;<=>?[\]^_`{|}~'''#missing @ at the request of Julian
 def clean(instring, spaces = True): #removes punctuation and double spaces, replacing them w/ single spaces
-    if spaces:
-        for x in punctuation:
+    for x in punctuation:
             instring = instring.replace(x, " ")
+    if spaces:
         while instring.find("  ") > -1:
             instring = instring.replace("  ", " ")
     else:
-        for x in punctuation:
-            instring = instring.replace(x, " ")
-        instring.replace(" ","")
+        while instring.find(" ") > -1:
+            instring = instring.replace(" ","")
     instring = instring.lower()
     return instring
 
 #gets dictionaries
 curlist = os.listdir(os.getcwd())
-wordlists = []
-listnames = []
+temp = []
+wordlists = [] #will hold individual words
+stemlists = [] #will hold stems (eg funn*)
+listnames = [] #will hold the names of keyword files (to be used as variable names)
 i = 0
 for fname in curlist:
-    if fname.endswith(".txt"):
-        wordlists.append(open(fname, encoding = "utf-8").read().splitlines())
+    if fname.endswith(".txt"): #new list of keywords!
+        wordlists.append([])
+        stemlists.append([])
+        temp.append(open(fname, encoding = "utf-8").read().splitlines())
         i_of_x = 0
-        for x in wordlists[i]:
-            wordlists[i][i_of_x] = clean(x, spaces = False)
+        for x in temp[i]:
+            if temp[i][i_of_x].find("*") > -1:
+                stemlists[i].append(clean(temp[i][i_of_x], spaces = False))
+            else:
+                wordlists[i].append(clean(temp[i][i_of_x], spaces = False))
             i_of_x += 1
         uncheckedSpace = True
         uncheckedBlank = True
@@ -58,6 +66,7 @@ for fname in curlist:
         print("Imported dictionary: "+fname)
         i += 1
         listnames.append(fname.split(".")[0])
+print("\n")
 
 #creates list of output datafield names based on wordlist file names
 temp = []
@@ -83,9 +92,14 @@ def findInTweet(line, wordlists):
     for x in range(len(wordlists)):
         counts.append(0) #populates number of variables (eg emotionality)
         ratios.append(0)
-    for lists in wordlists:
+    for lists in wordlists: #start by grabbing words
         for word in lists:
             counts[wordlists.index(lists)] += content.count(word)
+    for lists in stemlists:
+        for stem in lists:
+            for token in content:
+                if token.startswith(stem):
+                    counts[stemlists.index(lists)] += 1
     for x in range(len(counts)): #same as len(wordlists)
         ratios[x] = counts[x]/len(content)
     line.extend(counts)
