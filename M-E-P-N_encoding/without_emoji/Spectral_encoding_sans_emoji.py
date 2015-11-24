@@ -22,6 +22,7 @@ import os
 #code for cleaning up strings (in dictionaries and in tweets)
 punctuation = '''!"#$%&'()*+,-./:;<=>?[\]^_`{|}~'''#missing @ at the request of Julian
 def clean(instring, spaces = True): #removes punctuation and double spaces, replacing them w/ single spaces
+    instring.replace("\n"," ")
     for x in punctuation:
             instring = instring.replace(x, " ")
     if spaces:
