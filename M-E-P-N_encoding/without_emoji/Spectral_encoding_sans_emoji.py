@@ -1,14 +1,14 @@
 #Dict-based spectral encoding of given traits based on dictionary word-matching!
 #Dominic Burkart
 
-#use: take in all given .txt wordlists in the directory this file is saved infor a given
+#use: take in all given .txt wordlists in the directory this file is saved in for a given
 #   trait (eg emotionality) and encode a given set of tweets with the wordcount from the
 #   given dictionary and the ratio of words in the tweet also in the dictionary/total #
 #   of words in the tweet.
 
 #for MEC project current version: 20 November 2015 (version 6)
-#assumes that words in tweet are separated by spaces/punctuation to allow for tokenization
-#no error checking for faulty input. 
+# -assumes that words in tweet are separated by spaces/punctuation to allow for tokenization
+# -no error checking for faulty input. 
 
 #get filepath for data + content index
 inputfiledir = input("data file directory: ")
@@ -37,7 +37,7 @@ def clean(instring, spaces = True): #removes punctuation and double spaces, repl
 #gets dictionaries
 curlist = os.listdir(os.getcwd())
 temp = []
-wordlists = [] #will hold individual words
+wordlists = [] #will hold individual words (eg fun)
 stemlists = [] #will hold stems (eg funn*)
 listnames = [] #will hold the names of keyword files (to be used as variable names)
 i = 0
@@ -96,7 +96,7 @@ def findInTweet(line, wordlists):
     for lists in wordlists: #start by grabbing words
         for word in lists:
             counts[wordlists.index(lists)] += content.count(word)
-    for lists in stemlists:
+    for lists in stemlists: #then grab stems
         for stem in lists:
             for token in content:
                 if token.startswith(stem):
@@ -110,6 +110,7 @@ def findInTweet(line, wordlists):
 #iterates through the input file, calling the methods to find and write output.
 inheader = True 
 for line in csv.reader(indoc):
+    line = line.
     if inheader: #to copy over header to the new doc + add the new columns :)
         line.extend(listnames)
         outdoc.writerow(line)
