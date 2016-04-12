@@ -83,10 +83,15 @@ for x in range(len(wordlists)):
 
 #opens our data and output files
 indoc = open(inputfiledir, encoding = "utf-8")
-outdoc= csv.writer(open("no_emoji_out.csv", mode = "w", encoding = "utf-8"), lineterminator ="\n")
+out = open("SpectralEncodingOut.csv", mode = "w", encoding = "utf-8")
+outdoc= csv.writer(out, lineterminator ="\n")
+tagOut = open("hashtagDict.csv", mode = "w", encoding = "utf-8")
+hashtagDict = csv.writer(tagOut, lineterminator = "\n")
+        
 
 #takes a line from the in data and encodes it
 def findInTweet(line, wordlists):
+    hashtagCheck(line)
     content = clean(line[tw_content_indx]).split(" ")
     counts = []
     ratios = []
@@ -106,11 +111,32 @@ def findInTweet(line, wordlists):
     line.extend(counts)
     line.extend(ratios)
     outdoc.writerow(line)
+
+#finds the end of a hashtag for hashtagCheck
+notTag = list(''' !"#$%&'()*+,-./:;<=>?[\]^_`{|}~''')
+def final(t):
+    last = 1
+    while last < len(t):
+        if t[last] in notTag:
+            return last
+        last +=1
+    return last
+
+#holds our hashtags
+hashtags = {}
+def hashtagCheck(line):
+    toks = line[tw_content_indx].split(" ")
+    for t in toks:
+        if t.startswith("#"):
+            last = final(t)
+            try:
+                hashtags[t[1:last]] += 1
+            except KeyError:
+                hashtags[t[1:last]] = 1
       
 #iterates through the input file, calling the methods to find and write output.
 inheader = True 
 for line in csv.reader(indoc):
-    line = line.
     if inheader: #to copy over header to the new doc + add the new columns :)
         line.extend(listnames)
         outdoc.writerow(line)
@@ -119,6 +145,17 @@ for line in csv.reader(indoc):
     else: #to count words + ratios for each tweet and then right those values to out :)
         findInTweet(line,wordlists)
 print("\nencoding complete.")
+
+print("\nSaving hashtag dictionary.")
+for h in hashtags:
+    line = [h, hashtags[h]]
+    hashtagDict.writerow(line)
+
+indoc.close()
+out.close()
+tagOut.close()
+
+
         
 
                 
