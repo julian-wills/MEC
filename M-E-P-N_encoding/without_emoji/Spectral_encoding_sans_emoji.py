@@ -11,7 +11,7 @@
 # -no error checking for faulty input. 
 
 #get filepath for data + content index
-inputfiledir = input("data file directory: ")
+inputfiledir = input("\ndata file directory: ")
 tw_content_indx = int(input("tweet text index in input file (usually 10): "))
 print("\n")
 
@@ -154,6 +154,8 @@ for h in hashtags:
 indoc.close()
 out.close()
 tagOut.close()
+
+print("\n Program complete.")
 
 
         
