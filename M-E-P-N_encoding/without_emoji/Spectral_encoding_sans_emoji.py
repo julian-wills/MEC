@@ -112,6 +112,21 @@ def findInTweet(line, wordlists):
     line.extend(ratios)
     outdoc.writerow(line)
 
+#takes a line from the in data and encodes it
+def showTokens(line):
+    content = clean(line[tw_content_indx]).split(" ")
+    words = []
+    for lists in wordlists: #start by grabbing words
+        for word in lists:
+            if word in content:
+                words.append(word)
+    for lists in stemlists: #then grab stems
+        for stem in lists:
+            for token in content:
+                if token.startswith(stem):
+                    words.append(token)
+    return words
+
 #finds the end of a hashtag for hashtagCheck
 notTag = list(''' !"#$%&'()*+,-./:;<=>?[\]^_`{|}~''')
 def final(t):
