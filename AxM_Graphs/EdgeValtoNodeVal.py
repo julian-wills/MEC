@@ -23,6 +23,7 @@ for line in csv.reader(indoc):
         sourceI = line.index("Source")
         targetI = line.index("Target")
         valueI = line.index(value)
+        outdoc.writerow(["Id", value])
         inheader = False
     else:
         if line[sourceI] not in used:
