@@ -28,7 +28,7 @@ for line in csv.reader(indoc):
         if line[sourceI] not in used:
             outdoc.writerow([line[sourceI], line[valueI]])
             used.append(line[sourceI])
-        if line[sourceI] not in used:
+        if line[targetI] not in used:
             outdoc.writerow([line[targetI], line[valueI]])
             used.append(line[targetI])
 out.close()
